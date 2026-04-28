@@ -14,6 +14,9 @@
 # 运行应用
 python image_tool_cn.py
 
+# 运行测试
+python -m pytest test_image_tool.py -v
+
 # 构建 exe（Windows）
 pyinstaller image_tool_cn.spec
 ```
@@ -29,6 +32,7 @@ pyinstaller image_tool_cn.spec
 | 文件 | 用途 |
 |------|------|
 | `image_tool_cn.py` | 唯一源码，约 420 行。包含 `CropCanvas`（图片预览 + 鼠标裁剪）和 `ImageToolCN`（GUI 主体）|
+| `test_image_tool.py` | pytest 单元测试，覆盖缩放/裁剪/坐标换算/手柄拖动核心逻辑 |
 | `image_tool_cn.spec` | PyInstaller 打包配置 |
 | `build/`、`dist/` | 构建产物，**不要手动修改** |
 
@@ -62,12 +66,12 @@ ImageToolCN                 ← 应用主体，创建 Notebook 双标签页
 
 ## 注意事项
 
-- 无测试、无 lint、无 CI 配置，裸仓库
+- 无 lint、无 CI 配置；测试命令 `python -m pytest test_image_tool.py -v`
 - 批量处理输出固定为 JPEG，`convert("RGB")` 丢弃透明通道
-- 单张处理保存时弹出格式选择对话框，JPEG 使用界面质量参数
-- 选择图片后自动加载并显示到画布；单张标签页无输出路径输入框
+- 批量处理 UI 更新通过 `root.after()` 回到主线程，非线程安全操作已隔离
+- 批量处理开始前检查输出目录已有图片，弹出覆盖确认
 - 单张处理保存时弹出格式选择对话框，默认后缀匹配原图格式；每次保存均需选择路径，避免覆盖
-- 鼠标裁剪坐标自动换算：Canvas 预览缩放 → 原图真实像素；`_internal_update` 标志防止 trace 回调循环
+- 鼠标裁剪坐标自动换算：Canvas 预览缩放 → 原图真实像素；`_internal_update` 标志防止 trace 回调循环，try/finally 保护防死锁
 - 加载新图片时自动清空裁剪区域、填充原图尺寸到缩放输入框
 - 「应用裁剪」/「应用缩放」修改内存中的 `display_image` 并立即刷新画布预览；「保存到文件」才写入磁盘
 - 「重置」恢复 `display_image` 为原始图片

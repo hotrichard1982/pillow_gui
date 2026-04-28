@@ -25,6 +25,7 @@ class CropCanvas(tk.Canvas):
         self.disp_h = 0
 
         self.crop_rect = None
+        self._cached_handles = None
 
         self._drag_mode = None
         self._drag_start = (0, 0)
@@ -141,6 +142,7 @@ class CropCanvas(tk.Canvas):
         self.photo = ImageTk.PhotoImage(self.display_image_copy)
 
         self.delete("all")
+        self._cached_handles = None
         self.create_image(self.offset_x, self.offset_y, anchor="nw",
                           image=self.photo, tags="bgimg")
         if self.crop_rect:
@@ -281,16 +283,19 @@ class CropCanvas(tk.Canvas):
     # ---------- handle / hit test ----------
 
     def _handle_positions(self):
+        if self._cached_handles is not None:
+            return self._cached_handles
         x, y, w, h = self.crop_rect
         cx1, cy1 = self._to_canvas(x, y)
         cx2, cy2 = self._to_canvas(x + w, y + h)
         mid_x = (cx1 + cx2) // 2
         mid_y = (cy1 + cy2) // 2
-        return {
+        self._cached_handles = {
             "tl": (cx1, cy1), "tc": (mid_x, cy1), "tr": (cx2, cy1),
             "ml": (cx1, mid_y), "mr": (cx2, mid_y),
             "bl": (cx1, cy2), "bc": (mid_x, cy2), "br": (cx2, cy2),
         }
+        return self._cached_handles
 
     def _hit_test_handle(self, cx, cy):
         if self.crop_rect is None:
@@ -354,6 +359,7 @@ class ImageToolCN:
         self.root = root
         self.root.title("图片工具")
         self.root.geometry("1000x720")
+        self.root.minsize(600, 400)
         self.root.resizable(True, True)
 
         self.notebook = ttk.Notebook(root)
@@ -439,6 +445,17 @@ class ImageToolCN:
 
         self.resize_width.trace_add("write", self._on_resize_width_change)
         self.resize_height.trace_add("write", self._on_resize_height_change)
+        self.single_quality.trace_add("write", self._on_quality_change)
+
+    def _on_quality_change(self, *args):
+        try:
+            v = self.single_quality.get()
+        except Exception:
+            return
+        if v < 1:
+            self.single_quality.set(1)
+        elif v > 100:
+            self.single_quality.set(100)
 
     def _build_single_crop_panel(self, parent):
         self.crop_x = tk.IntVar(value=0)
@@ -515,9 +532,11 @@ class ImageToolCN:
 
     def _on_canvas_display_changed(self, w, h):
         self._internal_update = True
-        self.resize_width.set(w)
-        self.resize_height.set(h)
-        self._internal_update = False
+        try:
+            self.resize_width.set(w)
+            self.resize_height.set(h)
+        finally:
+            self._internal_update = False
         ow, oh = self.canvas.original_image.size
         self.single_hint.set(
             f"原图：{ow}×{oh}  |  当前：{w}×{h}  |  拖拽手柄编辑裁剪框")
@@ -529,13 +548,16 @@ class ImageToolCN:
             try:
                 w = self.resize_width.get()
             except Exception:
+                import traceback; traceback.print_exc()
                 return
             if w <= 0:
                 return
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            self.resize_height.set(int(w * dh / dw))
-            self._internal_update = False
+            try:
+                self.resize_height.set(int(w * dh / dw))
+            finally:
+                self._internal_update = False
 
     def _on_resize_height_change(self, *args):
         if self._internal_update:
@@ -544,21 +566,26 @@ class ImageToolCN:
             try:
                 h = self.resize_height.get()
             except Exception:
+                import traceback; traceback.print_exc()
                 return
             if h <= 0:
                 return
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            self.resize_width.set(int(h * dw / dh))
-            self._internal_update = False
+            try:
+                self.resize_width.set(int(h * dw / dh))
+            finally:
+                self._internal_update = False
 
     def _on_keep_aspect_toggle(self):
         if self.keep_aspect.get() and self.canvas.display_image:
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            self.resize_height.set(
-                int(self.resize_width.get() * dh / dw))
-            self._internal_update = False
+            try:
+                self.resize_height.set(
+                    int(self.resize_width.get() * dh / dw))
+            finally:
+                self._internal_update = False
 
     # ---------- 操作 ----------
 
@@ -704,6 +731,18 @@ class ImageToolCN:
         ttk.Label(self.batch_frame, textvariable=self.batch_status,
                   foreground="green").pack()
 
+        self.quality.trace_add("write", self._on_batch_quality_change)
+
+    def _on_batch_quality_change(self, *args):
+        try:
+            v = self.quality.get()
+        except Exception:
+            return
+        if v < 1:
+            self.quality.set(1)
+        elif v > 100:
+            self.quality.set(100)
+
     def _select_input_dir(self):
         folder = filedialog.askdirectory(title="选择图片文件夹")
         if folder:
@@ -718,11 +757,22 @@ class ImageToolCN:
         if not self.input_dir.get() or not self.output_dir.get():
             messagebox.showwarning("提示", "请先选择输入和输出文件夹")
             return
+        output_folder = self.output_dir.get()
+        if os.path.isdir(output_folder):
+            existing = [f for f in os.listdir(output_folder)
+                        if f.lower().endswith((".jpg", ".jpeg", ".png",
+                                               ".webp", ".bmp"))]
+            if existing:
+                ok = messagebox.askyesno(
+                    "确认", f"输出文件夹中已有 {len(existing)} 张图片，"
+                            f"同名文件将被覆盖。\n是否继续？")
+                if not ok:
+                    return
         threading.Thread(target=self._batch_worker, daemon=True).start()
 
     def _batch_worker(self):
-        self.batch_btn.config(state=tk.DISABLED)
-        self.batch_status.set("正在处理...")
+        self.root.after(0, lambda: self.batch_btn.config(state=tk.DISABLED))
+        self.root.after(0, lambda: self.batch_status.set("正在处理..."))
 
         input_folder = self.input_dir.get()
         output_folder = self.output_dir.get()
@@ -731,8 +781,10 @@ class ImageToolCN:
         exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
         files = [f for f in os.listdir(input_folder)
                  if f.lower().endswith(exts)]
+        total = len(files)
+        errors = []
 
-        for f in files:
+        for i, f in enumerate(files, 1):
             in_path = os.path.join(input_folder, f)
             out_path = os.path.join(output_folder, f)
             try:
@@ -744,11 +796,20 @@ class ImageToolCN:
                 img.save(out_path, "JPEG",
                          quality=self.quality.get(), optimize=True)
             except Exception as e:
+                errors.append(f)
                 print(f"处理失败 {f}: {e}")
+            self.root.after(0, lambda i=i, t=total:
+                           self.batch_status.set(f"处理中... {i}/{t}"))
 
-        self.batch_status.set(f"处理完成！共 {len(files)} 张")
-        self.batch_btn.config(state=tk.NORMAL)
-        messagebox.showinfo("完成", f"已处理 {len(files)} 张图片！")
+        self.root.after(0, lambda t=total, e=errors:
+                       self.batch_status.set(
+                           f"完成！共 {t} 张"
+                           + (f"，{len(e)} 张失败" if e else "")))
+        self.root.after(0, lambda: self.batch_btn.config(state=tk.NORMAL))
+        msg = f"已处理 {total} 张图片！"
+        if errors:
+            msg += f"\n失败 {len(errors)} 张：{', '.join(errors[:5])}"
+        self.root.after(0, lambda m=msg: messagebox.showinfo("完成", m))
 
 
 if __name__ == "__main__":
