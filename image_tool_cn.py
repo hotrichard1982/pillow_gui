@@ -38,6 +38,7 @@ class CropCanvas(tk.Canvas):
         self.bind("<ButtonRelease-1>", self._on_release)
         self.bind("<Configure>", self._on_resize)
         self.bind("<KeyPress-Escape>", self._on_escape)
+        self.bind("<Motion>", self._on_motion)
         self.focus_set()
 
     def set_callbacks(self, on_crop_changed, on_display_changed):
@@ -167,6 +168,30 @@ class CropCanvas(tk.Canvas):
             self.create_rectangle(
                 hx - hs, hy - hs, hx + hs, hy + hs,
                 fill="white", outline="red", width=1, tags="crop")
+
+    def _on_motion(self, event):
+        if self.crop_rect is None or self.display_image is None:
+            self.config(cursor="cross")
+            return
+        ox, oy = self.offset_x, self.offset_y
+        if not (ox <= event.x <= ox + self.disp_w and
+                oy <= event.y <= oy + self.disp_h):
+            self.config(cursor="")
+            return
+        handle = self._hit_test_handle(event.x, event.y)
+        if handle is not None:
+            cursors = {
+                "tl": "size_nw_se", "br": "size_nw_se",
+                "tr": "size_ne_sw", "bl": "size_ne_sw",
+                "tc": "sb_v_double_arrow", "bc": "sb_v_double_arrow",
+                "ml": "sb_h_double_arrow", "mr": "sb_h_double_arrow",
+            }
+            self.config(cursor=cursors.get(handle, "cross"))
+            return
+        if self._inside_rect(event.x, event.y):
+            self.config(cursor="fleur")
+            return
+        self.config(cursor="cross")
 
     def _on_resize(self, event):
         if self.display_image:
@@ -357,13 +382,6 @@ class ImageToolCN:
             side=tk.LEFT)
         ttk.Button(top_frame, text="加载", command=self._load_single_image).pack(
             side=tk.LEFT, padx=5)
-
-        ttk.Label(top_frame, text="输出路径：").pack(side=tk.LEFT, padx=(15, 0))
-        self.single_output = tk.StringVar()
-        ttk.Entry(top_frame, textvariable=self.single_output, width=40).pack(
-            side=tk.LEFT, padx=5)
-        ttk.Button(top_frame, text="浏览...", command=self._select_single_output).pack(
-            side=tk.LEFT)
 
         # 下部：左右分栏
         bottom_frame = ttk.Frame(self.single_frame)
@@ -584,16 +602,20 @@ class ImageToolCN:
     def _save_to_file(self):
         if self.canvas.display_image is None:
             return
-        out_path = self.single_output.get()
+
+        orig_fmt = (self.canvas.original_image.format
+                    if self.canvas.original_image else None)
+        ext_map = {"JPEG": ".jpg", "PNG": ".png",
+                   "WEBP": ".webp", "BMP": ".bmp"}
+        def_ext = ext_map.get(orig_fmt, ".jpg")
+
+        out_path = filedialog.asksaveasfilename(
+            title="保存图片",
+            defaultextension=def_ext,
+            filetypes=[("JPEG", "*.jpg"), ("PNG", "*.png"),
+                       ("WebP", "*.webp"), ("BMP", "*.bmp")])
         if not out_path:
-            out_path = filedialog.asksaveasfilename(
-                title="保存图片",
-                defaultextension=".jpg",
-                filetypes=[("JPEG", "*.jpg"), ("PNG", "*.png"),
-                           ("WebP", "*.webp"), ("BMP", "*.bmp")])
-            if not out_path:
-                return
-            self.single_output.set(out_path)
+            return
 
         try:
             img = self.canvas.get_display_image()
@@ -625,15 +647,7 @@ class ImageToolCN:
                        ("所有文件", "*.*")])
         if path:
             self.single_input.set(path)
-
-    def _select_single_output(self):
-        path = filedialog.asksaveasfilename(
-            title="设置输出路径",
-            defaultextension=".jpg",
-            filetypes=[("JPEG", "*.jpg"), ("PNG", "*.png"),
-                       ("WebP", "*.webp"), ("BMP", "*.bmp")])
-        if path:
-            self.single_output.set(path)
+            self._load_single_image()
 
     def _load_single_image(self):
         path = self.single_input.get()
