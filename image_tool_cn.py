@@ -4,6 +4,14 @@ from PIL import Image, ImageTk
 import os
 import threading
 
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    HAS_DND = True
+except ImportError:
+    HAS_DND = False
+    DND_FILES = None
+    TkinterDnD = type("_FakeDnD", (tk.Tk,), {})
+
 
 class CropCanvas(tk.Canvas):
     HANDLE_SIZE = 6
@@ -355,6 +363,8 @@ class CropCanvas(tk.Canvas):
 
 
 class ImageToolCN:
+    IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
+
     def __init__(self, root):
         self.root = root
         self.root.title("图片工具")
@@ -407,6 +417,10 @@ class ImageToolCN:
         self._build_single_resize_panel(ctrl_panel)
         self._build_single_crop_panel(ctrl_panel)
         self._build_single_action_panel(ctrl_panel)
+
+        if HAS_DND:
+            self.canvas.drop_target_register(DND_FILES)
+            self.canvas.dnd_bind('<<Drop>>', self._on_file_drop)
 
     def _build_single_resize_panel(self, parent):
         self.resize_width = tk.IntVar(value=800)
@@ -498,10 +512,15 @@ class ImageToolCN:
         frame = ttk.Frame(parent)
         frame.pack(fill=tk.X, pady=(5, 0))
 
-        self.btn_save = ttk.Button(frame, text="保存到文件",
-                                   command=self._save_to_file,
-                                   state=tk.DISABLED)
-        self.btn_save.pack(side=tk.LEFT, padx=(0, 5))
+        self.btn_save_as = ttk.Button(frame, text="另存为",
+                                      command=self._save_as,
+                                      state=tk.DISABLED)
+        self.btn_save_as.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.btn_overwrite = ttk.Button(frame, text="覆盖原图",
+                                        command=self._overwrite_original,
+                                        state=tk.DISABLED)
+        self.btn_overwrite.pack(side=tk.LEFT, padx=(0, 5))
 
         self.btn_reset = ttk.Button(frame, text="重置",
                                     command=self._reset_preview,
@@ -512,6 +531,11 @@ class ImageToolCN:
             value="提示：拖拽鼠标在图片上选择裁剪区域，拖动方框手柄可调整")
         ttk.Label(parent, textvariable=self.single_hint,
                   foreground="gray").pack(pady=(8, 0))
+
+        self.root.bind("<Control-s>", lambda e: self._overwrite_original())
+        self.root.bind("<Control-S>", lambda e: self._overwrite_original())
+        self.root.bind("<Control-Shift-s>", lambda e: self._save_as())
+        self.root.bind("<Control-Shift-S>", lambda e: self._save_as())
 
     # ---------- 回调 ----------
 
@@ -626,7 +650,7 @@ class ImageToolCN:
     def _clear_crop(self):
         self.canvas.clear_crop()
 
-    def _save_to_file(self):
+    def _save_as(self):
         if self.canvas.display_image is None:
             return
 
@@ -637,7 +661,7 @@ class ImageToolCN:
         def_ext = ext_map.get(orig_fmt, ".jpg")
 
         out_path = filedialog.asksaveasfilename(
-            title="保存图片",
+            title="另存为",
             defaultextension=def_ext,
             filetypes=[("JPEG", "*.jpg"), ("PNG", "*.png"),
                        ("WebP", "*.webp"), ("BMP", "*.bmp")])
@@ -651,6 +675,28 @@ class ImageToolCN:
         except Exception as e:
             messagebox.showerror("错误", f"保存失败：{e}")
 
+    def _overwrite_original(self):
+        if self.canvas.original_image is None:
+            return
+        src = self.canvas.original_image
+        if not (hasattr(src, 'filename') and src.filename
+                and os.path.isfile(src.filename)):
+            messagebox.showwarning("提示", "原图路径无效，无法覆盖。请使用「另存为」")
+            return
+        ok = messagebox.askyesno(
+            "确认覆盖", f"将覆盖原图：\n{src.filename}\n\n确定继续？")
+        if not ok:
+            return
+        try:
+            img = self.canvas.get_display_image()
+            self._save_image(img, src.filename)
+            messagebox.showinfo("完成", f"已覆盖原图：\n{src.filename}")
+        except Exception as e:
+            messagebox.showerror("错误", f"覆盖失败：{e}")
+
+    def _save_as_old_redirect(self):
+        self._save_as()
+
     def _reset_preview(self):
         self.canvas.reset_to_original()
         self.btn_crop.config(state=tk.DISABLED)
@@ -659,12 +705,17 @@ class ImageToolCN:
         ext = os.path.splitext(out_path)[1].lower()
         fmt = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG",
                ".webp": "WEBP", ".bmp": "BMP"}.get(ext, "JPEG")
-        if fmt == "JPEG" and img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
+        if fmt in ("JPEG", "WEBP"):
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
         save_kwargs = {}
         if fmt == "JPEG":
-            save_kwargs["quality"] = self.single_quality.get()
+            q = self.single_quality.get()
+            save_kwargs["quality"] = max(1, min(100, q))
             save_kwargs["optimize"] = True
+        elif fmt == "WEBP":
+            q = self.single_quality.get()
+            save_kwargs["quality"] = max(1, min(100, q))
         img.save(out_path, fmt, **save_kwargs)
 
     def _select_single_input(self):
@@ -676,6 +727,19 @@ class ImageToolCN:
             self.single_input.set(path)
             self._load_single_image()
 
+    def _on_file_drop(self, event):
+        raw = event.data
+        path = raw.strip().strip('{}').strip('"').strip()
+        if not os.path.isfile(path):
+            return
+        if not path.lower().endswith(self.IMG_EXTS):
+            messagebox.showwarning("格式不支持",
+                                   f"不支持的文件格式，请拖入图片文件\n"
+                                   f"支持：JPG、JPEG、PNG、WebP、BMP")
+            return
+        self.single_input.set(path)
+        self._load_single_image()
+
     def _load_single_image(self):
         path = self.single_input.get()
         if not path or not os.path.isfile(path):
@@ -683,7 +747,8 @@ class ImageToolCN:
             return
         if self.canvas.load_image(path):
             self.btn_resize.config(state=tk.NORMAL)
-            self.btn_save.config(state=tk.NORMAL)
+            self.btn_save_as.config(state=tk.NORMAL)
+            self.btn_overwrite.config(state=tk.NORMAL)
             self.btn_reset.config(state=tk.NORMAL)
             self.btn_crop.config(state=tk.DISABLED)
         else:
@@ -760,8 +825,7 @@ class ImageToolCN:
         output_folder = self.output_dir.get()
         if os.path.isdir(output_folder):
             existing = [f for f in os.listdir(output_folder)
-                        if f.lower().endswith((".jpg", ".jpeg", ".png",
-                                               ".webp", ".bmp"))]
+                        if f.lower().endswith(self.IMG_EXTS)]
             if existing:
                 ok = messagebox.askyesno(
                     "确认", f"输出文件夹中已有 {len(existing)} 张图片，"
@@ -778,7 +842,7 @@ class ImageToolCN:
         output_folder = self.output_dir.get()
         os.makedirs(output_folder, exist_ok=True)
 
-        exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
+        exts = self.IMG_EXTS
         files = [f for f in os.listdir(input_folder)
                  if f.lower().endswith(exts)]
         total = len(files)
