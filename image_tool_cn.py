@@ -452,10 +452,15 @@ class ImageToolCN:
             row=3, column=1, padx=5)
         ttk.Label(frame, text="(1-100)").grid(row=3, column=2, sticky="w")
 
+        self.lbl_png_warn = tk.Label(frame, text="⚠ PNG 为无损格式，压缩无效，保存时默认转 JPG",
+                                     fg="#c0392b", font=("", 8))
+        self.lbl_png_warn.grid(row=4, column=0, columnspan=3, pady=(3, 0))
+        self.lbl_png_warn.grid_remove()
+
         self.btn_resize = ttk.Button(frame, text="应用缩放",
-                                     command=self._apply_resize,
-                                     state=tk.DISABLED)
-        self.btn_resize.grid(row=4, column=0, columnspan=3, pady=(10, 0))
+                                      command=self._apply_resize,
+                                      state=tk.DISABLED)
+        self.btn_resize.grid(row=5, column=0, columnspan=3, pady=(10, 0))
 
         self.resize_width.trace_add("write", self._on_resize_width_change)
         self.resize_height.trace_add("write", self._on_resize_height_change)
@@ -562,8 +567,15 @@ class ImageToolCN:
         finally:
             self._internal_update = False
         ow, oh = self.canvas.original_image.size
-        self.single_hint.set(
-            f"原图：{ow}×{oh}  |  当前：{w}×{h}  |  拖拽手柄编辑裁剪框")
+        fmt = self.canvas.original_image.format
+        hint = f"原图：{ow}×{oh}  |  当前：{w}×{h}"
+        if fmt == "PNG":
+            hint += "  |  ⚠ PNG 无法压缩，保存时默认转 JPG"
+            self.lbl_png_warn.grid()
+        else:
+            self.lbl_png_warn.grid_remove()
+        hint += "  |  拖拽手柄编辑裁剪框"
+        self.single_hint.set(hint)
 
     def _on_resize_width_change(self, *args):
         if self._internal_update:
@@ -658,7 +670,11 @@ class ImageToolCN:
                     if self.canvas.original_image else None)
         ext_map = {"JPEG": ".jpg", "PNG": ".png",
                    "WEBP": ".webp", "BMP": ".bmp"}
-        def_ext = ext_map.get(orig_fmt, ".jpg")
+        # PNG/BMP 等无损格式默认转 JPG，让压缩质量生效
+        if orig_fmt in ("PNG", "BMP"):
+            def_ext = ".jpg"
+        else:
+            def_ext = ext_map.get(orig_fmt, ".jpg")
 
         out_path = filedialog.asksaveasfilename(
             title="另存为",
@@ -671,7 +687,8 @@ class ImageToolCN:
         try:
             img = self.canvas.get_display_image()
             self._save_image(img, out_path)
-            messagebox.showinfo("完成", f"保存成功！\n{out_path}")
+            size_kb = os.path.getsize(out_path) / 1024
+            messagebox.showinfo("完成", f"另存成功！\n{out_path}\n大小：{size_kb:.0f} KB")
         except Exception as e:
             messagebox.showerror("错误", f"保存失败：{e}")
 
@@ -683,14 +700,33 @@ class ImageToolCN:
                 and os.path.isfile(src.filename)):
             messagebox.showwarning("提示", "原图路径无效，无法覆盖。请使用「另存为」")
             return
-        ok = messagebox.askyesno(
-            "确认覆盖", f"将覆盖原图：\n{src.filename}\n\n确定继续？")
-        if not ok:
-            return
+        orig_fmt = src.format
+        if orig_fmt in ("PNG", "BMP"):
+            new_path = os.path.splitext(src.filename)[0] + ".jpg"
+            ok = messagebox.askyesno(
+                "确认转换",
+                f"PNG 为无损格式，压缩无效。\n"
+                f"将另存为 JPG：\n{new_path}\n\n"
+                f"原文件保留不变。是否继续？")
+            if not ok:
+                return
+            out_path = new_path
+        else:
+            out_path = src.filename
+            ok = messagebox.askyesno(
+                "确认覆盖", f"将覆盖原图：\n{src.filename}\n\n确定继续？")
+            if not ok:
+                return
         try:
+            old_info = ""
+            if os.path.exists(out_path):
+                old_info = f"，原大小：{os.path.getsize(out_path)/1024:.0f} KB"
             img = self.canvas.get_display_image()
-            self._save_image(img, src.filename)
-            messagebox.showinfo("完成", f"已覆盖原图：\n{src.filename}")
+            self._save_image(img, out_path)
+            new_size = os.path.getsize(out_path) / 1024
+            messagebox.showinfo("完成",
+                f"保存成功！\n{out_path}\n"
+                f"大小：{new_size:.0f} KB{old_info}")
         except Exception as e:
             messagebox.showerror("错误", f"覆盖失败：{e}")
 
@@ -708,14 +744,18 @@ class ImageToolCN:
         if fmt in ("JPEG", "WEBP"):
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
+        elif fmt == "PNG" and img.mode not in ("RGB", "RGBA", "L", "P"):
+            img = img.convert("RGBA")
         save_kwargs = {}
+        q = max(1, min(100, self.single_quality.get()))
         if fmt == "JPEG":
-            q = self.single_quality.get()
-            save_kwargs["quality"] = max(1, min(100, q))
+            save_kwargs["quality"] = q
             save_kwargs["optimize"] = True
         elif fmt == "WEBP":
-            q = self.single_quality.get()
-            save_kwargs["quality"] = max(1, min(100, q))
+            save_kwargs["quality"] = q
+        elif fmt == "PNG":
+            save_kwargs["compress_level"] = max(
+                4, min(9, 9 - (q - 1) * 5 // 99))
         img.save(out_path, fmt, **save_kwargs)
 
     def _select_single_input(self):
@@ -877,6 +917,9 @@ class ImageToolCN:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    if HAS_DND:
+        root = TkinterDnD.Tk()
+    else:
+        root = tk.Tk()
     ImageToolCN(root)
     root.mainloop()
