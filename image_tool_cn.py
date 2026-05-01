@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import os
 import threading
+import webbrowser
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -365,15 +366,25 @@ class CropCanvas(tk.Canvas):
 class ImageToolCN:
     IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
 
-    # 配色
-    C_PRIMARY = "#3498db"
-    C_DARK = "#2c3e50"
-    C_BG = "#f5f6fa"
-    C_SURFACE = "#ffffff"
-    C_ACCENT = "#e74c3c"
-    C_TEXT = "#2c3e50"
-    C_MUTED = "#7f8c8d"
-    C_SUCCESS = "#27ae60"
+    # ========== 现代配色方案 (Software 3.0) ==========
+    C_PRIMARY = "#3b82f6"          # 明亮蓝 - 主操作
+    C_PRIMARY_HOVER = "#2563eb"    # 深蓝 - 悬停
+    C_DARK = "#0f172a"             # 深 slate - 头部/底部
+    C_BG = "#f8fafc"               # 极浅灰蓝 - 主背景
+    C_SURFACE = "#ffffff"          # 纯白 - 卡片表面
+    C_SURFACE_ALT = "#f1f5f9"      # 浅灰蓝 - 交替表面
+    C_ACCENT = "#ef4444"           # 红 - 警告/强调
+    C_TEXT = "#1e293b"             # 深 slate - 主文本
+    C_TEXT_MUTED = "#64748b"       # 中灰 - 次要文本
+    C_SUCCESS = "#10b981"          # 翠绿 - 成功
+    C_SUCCESS_HOVER = "#059669"    # 深绿 - 成功悬停
+    C_BORDER = "#e2e8f0"           # 浅灰 - 边框
+    C_BORDER_HOVER = "#cbd5e1"     # 中浅灰 - 悬停边框
+    C_WARNING_BG = "#fff7ed"       # 浅橙 - 警告背景
+    C_WARNING_TEXT = "#c2410c"     # 深橙 - 警告文本
+
+    # ========== 字体方案 ==========
+    FONT_FAMILY = "Segoe UI"
 
     def _on_file_drop(self, event):
         raw = event.data
@@ -391,36 +402,80 @@ class ImageToolCN:
     def __init__(self, root):
         self.root = root
         self.root.title("图轻剪 PicCraft")
-        self.root.geometry("1060x780")
-        self.root.minsize(800, 550)
+        self.root.geometry("1120x820")
+        self.root.minsize(900, 600)
         self.root.resizable(True, True)
         self.root.configure(bg=self.C_BG)
 
         self._apply_theme()
 
-        # ---- 顶部 ----
-        header = tk.Frame(root, bg=self.C_DARK, height=70)
-        header.pack(fill=tk.X)
+        # ---- 顶部导航栏 ----
+        header = tk.Frame(root, bg=self.C_DARK, height=80)
+        header.pack(fill=tk.X, side=tk.TOP)
         header.pack_propagate(False)
+
+        # 左侧：Logo + 标题
+        header_left = tk.Frame(header, bg=self.C_DARK)
+        header_left.pack(side=tk.LEFT, fill=tk.Y)
 
         logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
         if os.path.isfile(logo_path):
             self.logo_img = ImageTk.PhotoImage(
-                Image.open(logo_path).resize((44, 44), Image.Resampling.LANCZOS))
-            tk.Label(header, image=self.logo_img, bg=self.C_DARK).pack(
-                side=tk.LEFT, padx=(15, 10), pady=13)
+                Image.open(logo_path).resize((48, 48), Image.Resampling.LANCZOS))
+            tk.Label(header_left, image=self.logo_img, bg=self.C_DARK).pack(
+                side=tk.LEFT, padx=(20, 12), pady=16)
 
-        title_frame = tk.Frame(header, bg=self.C_DARK)
-        title_frame.pack(side=tk.LEFT, pady=10)
-        tk.Label(title_frame, text="图轻剪 PicCraft", font=("Microsoft YaHei", 16, "bold"),
-                 fg=self.C_PRIMARY, bg=self.C_DARK).pack(anchor="w")
+        title_frame = tk.Frame(header_left, bg=self.C_DARK)
+        title_frame.pack(side=tk.LEFT, pady=12)
+        tk.Label(title_frame, text="图轻剪 PicCraft",
+                 font=(self.FONT_FAMILY, 18, "bold"),
+                 fg="#ffffff", bg=self.C_DARK).pack(anchor="w")
         tk.Label(title_frame, text="重庆三人众科技有限公司",
-                 font=("Microsoft YaHei", 9), fg=self.C_MUTED,
+                 font=(self.FONT_FAMILY, 9,), fg=self.C_TEXT_MUTED,
                  bg=self.C_DARK).pack(anchor="w")
 
-        # ---- 主体 ----
+        # 右侧：信息区
+        header_right = tk.Frame(header, bg=self.C_DARK)
+        header_right.pack(side=tk.RIGHT, fill=tk.Y, padx=20, pady=8)
+
+        # 行1：版权 + 版本
+        row1 = tk.Frame(header_right, bg=self.C_DARK)
+        row1.pack(anchor="e")
+        tk.Label(row1, text="v20260502", font=(self.FONT_FAMILY, 8,),
+                 fg=self.C_TEXT_MUTED, bg=self.C_DARK).pack(side=tk.RIGHT, padx=(10, 0))
+        tk.Label(row1, text="© 重庆三人众科技有限公司",
+                 font=(self.FONT_FAMILY, 8,), fg=self.C_TEXT_MUTED,
+                 bg=self.C_DARK).pack(side=tk.RIGHT)
+
+        # 行2：GitHub + 官网
+        row2 = tk.Frame(header_right, bg=self.C_DARK)
+        row2.pack(anchor="e", pady=(2, 0))
+        gh_lbl = tk.Label(row2, text="⭐ GitHub 求Star",
+                         font=(self.FONT_FAMILY, 8, "underline"),
+                         fg=self.C_PRIMARY, bg=self.C_DARK, cursor="hand2")
+        gh_lbl.pack(side=tk.RIGHT, padx=(12, 0))
+        gh_lbl.bind("<Button-1>", lambda e: webbrowser.open(
+            "https://github.com/hotrichard1982/pillow_gui"))
+        gh_lbl.bind("<Enter>", lambda e: gh_lbl.config(fg="#60a5fa"))
+        gh_lbl.bind("<Leave>", lambda e: gh_lbl.config(fg=self.C_PRIMARY))
+        web_lbl = tk.Label(row2, text="https://www.cq30.com/",
+                          font=(self.FONT_FAMILY, 8, "underline"),
+                          fg=self.C_PRIMARY, bg=self.C_DARK, cursor="hand2")
+        web_lbl.pack(side=tk.RIGHT)
+        web_lbl.bind("<Button-1>", lambda e: webbrowser.open("https://www.cq30.com/"))
+        web_lbl.bind("<Enter>", lambda e: web_lbl.config(fg="#60a5fa"))
+        web_lbl.bind("<Leave>", lambda e: web_lbl.config(fg=self.C_PRIMARY))
+
+        # 行3：联系方式
+        row3 = tk.Frame(header_right, bg=self.C_DARK)
+        row3.pack(anchor="e", pady=(2, 0))
+        tk.Label(row3, text="QQ: 7602069  |  7602069@qq.com",
+                 font=(self.FONT_FAMILY, 8,), fg=self.C_TEXT_MUTED,
+                 bg=self.C_DARK).pack(side=tk.RIGHT)
+
+        # ---- 主体内容区 ----
         body = tk.Frame(root, bg=self.C_BG)
-        body.pack(fill=tk.BOTH, expand=True, padx=8, pady=(8, 0))
+        body.pack(fill=tk.BOTH, expand=True, padx=16, pady=(12, 0))
 
         self.notebook = ttk.Notebook(body)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -433,17 +488,6 @@ class ImageToolCN:
         self._build_single_tab()
         self._build_batch_tab()
 
-        # ---- 底部 ----
-        footer = tk.Frame(root, bg=self.C_DARK, height=28)
-        footer.pack(fill=tk.X, side=tk.BOTTOM)
-        footer.pack_propagate(False)
-        tk.Label(footer, text="QQ: 7602069  |  7602069@qq.com",
-                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
-                 bg=self.C_DARK).pack(side=tk.RIGHT, padx=15, pady=4)
-        tk.Label(footer, text="© 重庆三人众科技有限公司",
-                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
-                 bg=self.C_DARK).pack(side=tk.LEFT, padx=15, pady=4)
-
         # ---- 快捷键 ----
         self.root.bind("<Control-s>", lambda e: self._overwrite_original())
         self.root.bind("<Control-S>", lambda e: self._overwrite_original())
@@ -453,57 +497,181 @@ class ImageToolCN:
     def _apply_theme(self):
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure(".", font=("Microsoft YaHei", 9))
+
+        # 全局字体
+        style.configure(".", font=(self.FONT_FAMILY, 10,))
+
+        # Notebook - 现代标签页
         style.configure("TNotebook", background=self.C_BG, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=[18, 6], font=("Microsoft YaHei", 10))
+        style.configure("TNotebook.Tab",
+                       padding=[20, 8],
+                       font=(self.FONT_FAMILY, 10,),
+                       background=self.C_BG,
+                       foreground=self.C_TEXT_MUTED)
         style.map("TNotebook.Tab",
-                  background=[("selected", self.C_PRIMARY)],
-                  foreground=[("selected", "white")])
+                  background=[("selected", self.C_SURFACE), ("active", self.C_SURFACE_ALT)],
+                  foreground=[("selected", self.C_PRIMARY), ("active", self.C_TEXT)],
+                  expand=[("selected", [2, 2, 2, 0])])
+
+        # Frame
         style.configure("TFrame", background=self.C_BG)
-        style.configure("TLabelframe", background=self.C_SURFACE, borderwidth=1,
-                        relief="solid", padding=12)
-        style.configure("TLabelframe.Label", font=("Microsoft YaHei", 10, "bold"),
-                        foreground=self.C_DARK)
-        style.configure("TButton", padding=[10, 4], font=("Microsoft YaHei", 9))
+
+        # LabelFrame - 卡片风格
+        style.configure("TLabelframe",
+                       background=self.C_SURFACE,
+                       borderwidth=1,
+                       relief="solid",
+                       padding=16)
+        style.configure("TLabelframe.Label",
+                       font=(self.FONT_FAMILY, 10, "bold"),
+                       foreground=self.C_TEXT,
+                       background=self.C_SURFACE)
+
+        # 标准按钮 - 扁平主色
+        style.configure("TButton",
+                       padding=[12, 6],
+                       font=(self.FONT_FAMILY, 9,),
+                       borderwidth=0,
+                       relief="flat",
+                       anchor="center")
         style.map("TButton",
-                  background=[("active", self.C_PRIMARY), ("!disabled", self.C_PRIMARY)],
-                  foreground=[("active", "white"), ("!disabled", "white")])
-        style.configure("Accent.TButton", background=self.C_SUCCESS)
-        style.map("Accent.TButton",
-                  background=[("active", "#219a52"), ("!disabled", self.C_SUCCESS)],
-                  foreground=[("active", "white"), ("!disabled", "white")])
-        style.configure("TEntry", padding=4)
-        style.configure("TCheckbutton", background=self.C_SURFACE)
-        style.configure("TRadiobutton", background=self.C_SURFACE)
+                  background=[("active", self.C_PRIMARY_HOVER),
+                             ("pressed", self.C_PRIMARY_HOVER),
+                             ("!disabled", self.C_PRIMARY),
+                             ("disabled", self.C_BORDER)],
+                  foreground=[("active", "#ffffff"),
+                             ("pressed", "#ffffff"),
+                             ("!disabled", "#ffffff"),
+                             ("disabled", self.C_TEXT_MUTED)])
+
+        # 主要按钮样式 (蓝)
+        style.configure("Primary.TButton", padding=[12, 6])
+        style.map("Primary.TButton",
+                  background=[("active", self.C_PRIMARY_HOVER),
+                             ("pressed", self.C_PRIMARY_HOVER),
+                             ("!disabled", self.C_PRIMARY),
+                             ("disabled", self.C_BORDER)],
+                  foreground=[("active", "#ffffff"),
+                             ("pressed", "#ffffff"),
+                             ("!disabled", "#ffffff"),
+                             ("disabled", self.C_TEXT_MUTED)])
+
+        # 成功按钮样式 (绿)
+        style.configure("Success.TButton", padding=[12, 6])
+        style.map("Success.TButton",
+                  background=[("active", self.C_SUCCESS_HOVER),
+                             ("pressed", self.C_SUCCESS_HOVER),
+                             ("!disabled", self.C_SUCCESS),
+                             ("disabled", self.C_BORDER)],
+                  foreground=[("active", "#ffffff"),
+                             ("pressed", "#ffffff"),
+                             ("!disabled", "#ffffff"),
+                             ("disabled", self.C_TEXT_MUTED)])
+
+        # 次要按钮样式 (灰底)
+        style.configure("Secondary.TButton",
+                       padding=[12, 6],
+                       background=self.C_SURFACE,
+                       foreground=self.C_TEXT)
+        style.map("Secondary.TButton",
+                  background=[("active", self.C_BG),
+                             ("pressed", self.C_BG),
+                             ("!disabled", self.C_SURFACE),
+                             ("disabled", self.C_SURFACE)],
+                  foreground=[("active", self.C_TEXT),
+                             ("pressed", self.C_TEXT),
+                             ("!disabled", self.C_TEXT),
+                             ("disabled", self.C_TEXT_MUTED)])
+
+        # 输入框
+        style.configure("TEntry", padding=6)
+
+        # 复选框
+        style.configure("TCheckbutton",
+                       background=self.C_SURFACE,
+                       font=(self.FONT_FAMILY, 9,))
+        style.map("TCheckbutton",
+                  background=[("active", self.C_SURFACE)])
+
+        # 单选框
+        style.configure("TRadiobutton",
+                       background=self.C_SURFACE,
+                       font=(self.FONT_FAMILY, 9,))
+        style.map("TRadiobutton",
+                  background=[("active", self.C_SURFACE)])
+
+        # 标签
+        style.configure("TLabel",
+                       background=self.C_SURFACE,
+                       font=(self.FONT_FAMILY, 10,))
+
+        # 进度条
+        style.configure("Horizontal.TProgressbar",
+                       background=self.C_PRIMARY,
+                       troughcolor=self.C_BG,
+                       borderwidth=0,
+                       lightcolor=self.C_PRIMARY,
+                       darkcolor=self.C_PRIMARY)
 
     # ======================== 单张处理 ========================
     def _build_single_tab(self):
+        # 顶部工具栏
         top_frame = tk.Frame(self.single_frame, bg=self.C_BG)
-        top_frame.pack(fill=tk.X, padx=8, pady=(8, 4))
+        top_frame.pack(fill=tk.X, padx=12, pady=(12, 8))
 
-        tk.Label(top_frame, text="选择图片：", bg=self.C_BG, fg=self.C_TEXT,
-                 font=("Microsoft YaHei", 9)).pack(side=tk.LEFT)
+        tk.Label(top_frame, text="选择图片", bg=self.C_BG, fg=self.C_TEXT,
+                 font=(self.FONT_FAMILY, 10, "bold")).pack(side=tk.LEFT)
         self.single_input = tk.StringVar()
-        ttk.Entry(top_frame, textvariable=self.single_input, width=52).pack(
-            side=tk.LEFT, padx=6)
-        ttk.Button(top_frame, text="浏 览", command=self._select_single_input).pack(
-            side=tk.LEFT, padx=2)
-        ttk.Button(top_frame, text="加 载", command=self._load_single_image).pack(
-            side=tk.LEFT, padx=2)
+        ttk.Entry(top_frame, textvariable=self.single_input, width=55).pack(
+            side=tk.LEFT, padx=10)
+        ttk.Button(top_frame, text="浏览", command=self._select_single_input,
+                   style="Secondary.TButton").pack(side=tk.LEFT, padx=2)
+        ttk.Button(top_frame, text="加载", command=self._load_single_image,
+                   style="Primary.TButton").pack(side=tk.LEFT, padx=2)
 
-        bottom_frame = ttk.Frame(self.single_frame)
-        bottom_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(4, 8))
+        # 主体区域：画布 + 侧边栏
+        bottom_frame = tk.Frame(self.single_frame, bg=self.C_BG)
+        bottom_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(8, 12))
 
-        self.canvas = CropCanvas(bottom_frame)
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # 画布区域（无边框，嵌入式效果）
+        canvas_bg = tk.Frame(bottom_frame, bg="#ebeff3")
+        canvas_bg.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 12))
+        self.canvas = CropCanvas(canvas_bg, bg="#f1f5f9")
+        self.canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         self.canvas.set_callbacks(
             on_crop_changed=self._on_canvas_crop_changed,
             on_display_changed=self._on_canvas_display_changed,
         )
 
-        ctrl_panel = tk.Frame(bottom_frame, bg=self.C_BG, width=290)
-        ctrl_panel.pack(side=tk.RIGHT, fill=tk.Y)
-        ctrl_panel.pack_propagate(False)
+        # 右侧控制面板（带滚动条）
+        sidebar_scroll = ttk.Scrollbar(bottom_frame, orient="vertical")
+        sidebar_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        sidebar_canvas = tk.Canvas(bottom_frame, bg=self.C_BG, width=300,
+                                   highlightthickness=0, bd=0)
+        sidebar_canvas.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        sidebar_canvas.configure(yscrollcommand=sidebar_scroll.set)
+
+        ctrl_panel = tk.Frame(sidebar_canvas, bg=self.C_BG)
+        self._ctrl_inner_id = sidebar_canvas.create_window(
+            (0, 0), window=ctrl_panel, anchor="nw")
+
+        def _on_inner_configure(event):
+            sidebar_canvas.configure(scrollregion=sidebar_canvas.bbox("all"))
+        ctrl_panel.bind("<Configure>", _on_inner_configure)
+
+        def _on_canvas_configure(event):
+            sidebar_canvas.itemconfig(self._ctrl_inner_id, width=event.width)
+        sidebar_canvas.bind("<Configure>", _on_canvas_configure)
+
+        def _on_mousewheel(event):
+            sidebar_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        def _bind_wheel(event):
+            sidebar_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        def _unbind_wheel(event):
+            sidebar_canvas.unbind_all("<MouseWheel>")
+        sidebar_canvas.bind("<Enter>", _bind_wheel)
+        sidebar_canvas.bind("<Leave>", _unbind_wheel)
 
         self._build_single_resize_panel(ctrl_panel)
         self._build_single_crop_panel(ctrl_panel)
@@ -520,35 +688,69 @@ class ImageToolCN:
         self.single_quality = tk.IntVar(value=85)
         self._internal_update = False
 
-        frame = ttk.LabelFrame(parent, text=" 尺寸缩放 ", padding=12)
-        frame.pack(fill=tk.X, pady=(0, 8))
+        # 区块（无卡片边框，靠色块和间距区分）
+        section = tk.Frame(parent, bg=self.C_BG)
+        section.pack(fill=tk.X, pady=(0, 12))
 
-        ttk.Label(frame, text="宽度").grid(row=0, column=0, sticky="e", pady=3, padx=(0, 6))
-        ttk.Entry(frame, textvariable=self.resize_width, width=9).grid(row=0, column=1)
-        ttk.Label(frame, text="px").grid(row=0, column=2, padx=(4, 0))
+        tk.Label(section, text="尺寸缩放", font=(self.FONT_FAMILY, 10, "bold"),
+                fg=self.C_TEXT, bg=self.C_BG).pack(anchor="w", pady=(0, 6))
+        tk.Frame(section, bg=self.C_BORDER, height=1).pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(frame, text="高度").grid(row=1, column=0, sticky="e", pady=3, padx=(0, 6))
-        ttk.Entry(frame, textvariable=self.resize_height, width=9).grid(row=1, column=1)
-        ttk.Label(frame, text="px").grid(row=1, column=2, padx=(4, 0))
+        # 白色内容区（无边框）
+        content = tk.Frame(section, bg=self.C_SURFACE)
+        content.pack(fill=tk.X)
 
-        ttk.Checkbutton(frame, text="保持原图比例", variable=self.keep_aspect,
-                        command=self._on_keep_aspect_toggle).grid(
-            row=2, column=0, columnspan=3, pady=6, sticky="w", padx=(0, 0))
+        # 宽度
+        r0 = tk.Frame(content, bg=self.C_SURFACE)
+        r0.pack(fill=tk.X, padx=12, pady=(10, 4))
+        tk.Label(r0, text="宽度", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=4, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r0, textvariable=self.resize_width, width=12).pack(side=tk.LEFT, padx=(0, 4))
+        tk.Label(r0, text="px", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT_MUTED, bg=self.C_SURFACE).pack(side=tk.LEFT)
 
-        ttk.Label(frame, text="质量").grid(row=3, column=0, sticky="e", pady=3, padx=(0, 6))
-        q_frame = ttk.Frame(frame)
-        q_frame.grid(row=3, column=1, columnspan=2, sticky="w")
-        ttk.Entry(q_frame, textvariable=self.single_quality, width=6).pack(side=tk.LEFT)
-        ttk.Label(q_frame, text=" (1-100)").pack(side=tk.LEFT)
+        # 高度
+        r1 = tk.Frame(content, bg=self.C_SURFACE)
+        r1.pack(fill=tk.X, padx=12, pady=4)
+        tk.Label(r1, text="高度", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=4, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r1, textvariable=self.resize_height, width=12).pack(side=tk.LEFT, padx=(0, 4))
+        tk.Label(r1, text="px", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT_MUTED, bg=self.C_SURFACE).pack(side=tk.LEFT)
 
-        self.lbl_png_warn = tk.Label(frame, text="⚠ PNG 为无损格式，压缩无效，保存时默认转 JPG",
-                                     fg=self.C_ACCENT, font=("Microsoft YaHei", 7), bg=self.C_SURFACE)
-        self.lbl_png_warn.grid(row=4, column=0, columnspan=3, pady=(4, 0))
-        self.lbl_png_warn.grid_remove()
+        # 比例
+        ttk.Checkbutton(content, text="保持原图比例", variable=self.keep_aspect,
+                        command=self._on_keep_aspect_toggle).pack(
+            anchor="w", padx=12, pady=(6, 4))
 
-        self.btn_resize = ttk.Button(frame, text="应用缩放", command=self._apply_resize,
-                                     state=tk.DISABLED)
-        self.btn_resize.grid(row=5, column=0, columnspan=3, pady=(12, 0))
+        # 质量
+        r3 = tk.Frame(content, bg=self.C_SURFACE)
+        r3.pack(fill=tk.X, padx=12, pady=4)
+        tk.Label(r3, text="质量", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=4, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r3, textvariable=self.single_quality, width=7).pack(side=tk.LEFT, padx=(0, 4))
+        tk.Label(r3, text="(1-100)", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT_MUTED, bg=self.C_SURFACE).pack(side=tk.LEFT)
+
+        # PNG 警告
+        self.lbl_png_warn = tk.Frame(content, bg=self.C_WARNING_BG)
+        self.lbl_png_warn.pack(fill=tk.X, padx=12, pady=(6, 0))
+        self.lbl_png_warn.pack_forget()
+        warn_icon = tk.Label(self.lbl_png_warn, text="⚠", font=(self.FONT_FAMILY, 10,),
+                            fg=self.C_WARNING_TEXT, bg=self.C_WARNING_BG)
+        warn_icon.pack(side=tk.LEFT, padx=(10, 4), pady=6)
+        warn_text = tk.Label(self.lbl_png_warn,
+                            text="PNG 为无损格式，压缩无效，保存时默认转 JPG",
+                            font=(self.FONT_FAMILY, 8,), fg=self.C_WARNING_TEXT,
+                            bg=self.C_WARNING_BG, wraplength=250, justify="left")
+        warn_text.pack(side=tk.LEFT, padx=(0, 10), pady=6)
+
+        # 按钮
+        btn_area = tk.Frame(content, bg=self.C_SURFACE)
+        btn_area.pack(fill=tk.X, padx=12, pady=(4, 12))
+        self.btn_resize = ttk.Button(btn_area, text="应用缩放", command=self._apply_resize,
+                                     state=tk.DISABLED, style="Primary.TButton")
+        self.btn_resize.pack(fill=tk.X)
 
         self.resize_width.trace_add("write", self._on_resize_width_change)
         self.resize_height.trace_add("write", self._on_resize_height_change)
@@ -560,58 +762,80 @@ class ImageToolCN:
         self.crop_w = tk.IntVar(value=100)
         self.crop_h = tk.IntVar(value=100)
 
-        frame = ttk.LabelFrame(parent, text=" 自由裁剪 ", padding=12)
-        frame.pack(fill=tk.X, pady=(0, 8))
+        # 区块（无卡片边框）
+        section = tk.Frame(parent, bg=self.C_BG)
+        section.pack(fill=tk.X, pady=(0, 12))
 
-        ttk.Label(frame, text="X").grid(row=0, column=0, sticky="e", pady=3, padx=(0, 4))
-        ttk.Entry(frame, textvariable=self.crop_x, width=7).grid(row=0, column=1, padx=2)
-        ttk.Label(frame, text="Y").grid(row=0, column=2, sticky="e", pady=3, padx=(10, 4))
-        ttk.Entry(frame, textvariable=self.crop_y, width=7).grid(row=0, column=3, padx=2)
+        tk.Label(section, text="自由裁剪", font=(self.FONT_FAMILY, 10, "bold"),
+                fg=self.C_TEXT, bg=self.C_BG).pack(anchor="w", pady=(0, 6))
+        tk.Frame(section, bg=self.C_BORDER, height=1).pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(frame, text="宽").grid(row=1, column=0, sticky="e", pady=3, padx=(0, 4))
-        ttk.Entry(frame, textvariable=self.crop_w, width=7).grid(row=1, column=1, padx=2)
-        ttk.Label(frame, text="高").grid(row=1, column=2, sticky="e", pady=3, padx=(10, 4))
-        ttk.Entry(frame, textvariable=self.crop_h, width=7).grid(row=1, column=3, padx=2)
+        # 白色内容区（无边框）
+        content = tk.Frame(section, bg=self.C_SURFACE)
+        content.pack(fill=tk.X)
 
-        btn_row = ttk.Frame(frame)
-        btn_row.grid(row=2, column=0, columnspan=4, pady=(10, 0))
-        ttk.Button(btn_row, text="应用数值", command=self._apply_crop_numeric).pack(
-            side=tk.LEFT, padx=2)
-        ttk.Button(btn_row, text="清除", command=self._clear_crop).pack(side=tk.LEFT, padx=2)
+        # 第一行：X / Y
+        r0 = tk.Frame(content, bg=self.C_SURFACE)
+        r0.pack(fill=tk.X, padx=12, pady=(10, 4))
+        tk.Label(r0, text="X", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=3, anchor="e").pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Entry(r0, textvariable=self.crop_x, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Label(r0, text="Y", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=3, anchor="e").pack(side=tk.LEFT, padx=(12, 4))
+        ttk.Entry(r0, textvariable=self.crop_y, width=8).pack(side=tk.LEFT, padx=2)
 
-        self.btn_crop = ttk.Button(frame, text="应用裁剪", command=self._apply_crop,
-                                   state=tk.DISABLED)
-        self.btn_crop.grid(row=3, column=0, columnspan=4, pady=(8, 0))
+        # 第二行：宽 / 高
+        r1 = tk.Frame(content, bg=self.C_SURFACE)
+        r1.pack(fill=tk.X, padx=12, pady=4)
+        tk.Label(r1, text="宽", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=3, anchor="e").pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Entry(r1, textvariable=self.crop_w, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Label(r1, text="高", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=3, anchor="e").pack(side=tk.LEFT, padx=(12, 4))
+        ttk.Entry(r1, textvariable=self.crop_h, width=8).pack(side=tk.LEFT, padx=2)
+
+        # 操作按钮
+        r2 = tk.Frame(content, bg=self.C_SURFACE)
+        r2.pack(fill=tk.X, padx=12, pady=(8, 4))
+        ttk.Button(r2, text="应用数值", command=self._apply_crop_numeric,
+                   style="Secondary.TButton").pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(r2, text="清除", command=self._clear_crop,
+                   style="Secondary.TButton").pack(side=tk.LEFT)
+
+        # 应用裁剪按钮
+        btn_area = tk.Frame(content, bg=self.C_SURFACE)
+        btn_area.pack(fill=tk.X, padx=12, pady=(0, 12))
+        self.btn_crop = ttk.Button(btn_area, text="应用裁剪", command=self._apply_crop,
+                                   state=tk.DISABLED, style="Primary.TButton")
+        self.btn_crop.pack(fill=tk.X)
 
     def _build_single_action_panel(self, parent):
-        frame = ttk.Frame(parent)
-        frame.pack(fill=tk.X, pady=(6, 0))
+        # 操作按钮区（无卡片，直接放置）
+        frame = tk.Frame(parent, bg=self.C_BG)
+        frame.pack(fill=tk.X, pady=(10, 10))
 
-        tk.Label(frame, text="保存", bg=self.C_BG, fg=self.C_TEXT,
-                 font=("Microsoft YaHei", 9, "bold")).pack(anchor="w", pady=(0, 3))
-
-        btn_frame = ttk.Frame(frame)
+        btn_frame = tk.Frame(frame, bg=self.C_BG)
         btn_frame.pack(fill=tk.X)
 
-        self.btn_save_as = ttk.Button(btn_frame, text="另存为", command=self._save_as,
-                                      state=tk.DISABLED)
-        self.btn_save_as.pack(side=tk.LEFT, padx=(0, 4))
-        self.btn_overwrite = ttk.Button(btn_frame, text="覆盖原图", command=self._overwrite_original,
-                                        state=tk.DISABLED)
-        self.btn_overwrite.pack(side=tk.LEFT, padx=(0, 4))
         self.btn_reset = ttk.Button(btn_frame, text="重置", command=self._reset_preview,
-                                    state=tk.DISABLED)
-        self.btn_reset.pack(side=tk.LEFT)
+                                    state=tk.DISABLED, style="Secondary.TButton")
+        self.btn_reset.pack(side=tk.RIGHT, padx=(6, 0))
+        self.btn_overwrite = ttk.Button(btn_frame, text="覆盖原图", command=self._overwrite_original,
+                                        state=tk.DISABLED, style="Primary.TButton")
+        self.btn_overwrite.pack(side=tk.RIGHT, padx=(6, 0))
+        self.btn_save_as = ttk.Button(btn_frame, text="另存为", command=self._save_as,
+                                      state=tk.DISABLED, style="Secondary.TButton")
+        self.btn_save_as.pack(side=tk.RIGHT)
 
         shortcuts = tk.Label(frame, text="Ctrl+S 覆盖原图  |  Ctrl+Shift+S 另存为",
-                             font=("Microsoft YaHei", 7), fg=self.C_MUTED, bg=self.C_BG)
-        shortcuts.pack(anchor="w", pady=(3, 0))
+                             font=(self.FONT_FAMILY, 8,), fg=self.C_TEXT_MUTED, bg=self.C_BG)
+        shortcuts.pack(anchor="e", pady=(6, 0))
 
         self.single_hint = tk.StringVar(
             value="提示：拖拽鼠标选择裁剪区域，拖动方框手柄可调整")
         tk.Label(frame, textvariable=self.single_hint,
-                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
-                 bg=self.C_BG).pack(anchor="w", pady=(8, 0))
+                 font=(self.FONT_FAMILY, 9,), fg=self.C_TEXT_MUTED,
+                 bg=self.C_BG, wraplength=280, justify="left").pack(anchor="w", pady=(6, 0))
 
     # ---------- 回调（保持不变）----------
     def _on_canvas_crop_changed(self, rect):
@@ -635,10 +859,10 @@ class ImageToolCN:
         fmt = self.canvas.original_image.format
         hint = f"原图：{ow}×{oh}  |  当前：{w}×{h}"
         if fmt == "PNG":
-            hint += "  |  ⚠ PNG 无法压缩"
-            self.lbl_png_warn.grid()
+            hint += "  |  PNG 无法压缩"
+            self.lbl_png_warn.pack()
         else:
-            self.lbl_png_warn.grid_remove()
+            self.lbl_png_warn.pack_forget()
         self.single_hint.set(hint)
 
     def _on_resize_width_change(self, *args):
@@ -810,35 +1034,63 @@ class ImageToolCN:
         self.quality = tk.IntVar(value=60)
 
         wrapper = tk.Frame(self.batch_frame, bg=self.C_BG)
-        wrapper.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        wrapper.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
 
-        frame = ttk.LabelFrame(wrapper, text=" 文件夹设置 ", padding=14)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        # 文件夹设置
+        sec1 = tk.Frame(wrapper, bg=self.C_BG)
+        sec1.pack(fill=tk.X, pady=(0, 12))
+        tk.Label(sec1, text="文件夹设置", font=(self.FONT_FAMILY, 10, "bold"),
+                fg=self.C_TEXT, bg=self.C_BG).pack(anchor="w", pady=(0, 6))
+        tk.Frame(sec1, bg=self.C_BORDER, height=1).pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(frame, text="图片文件夹").grid(row=0, column=0, sticky="e", pady=6, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.input_dir, width=52).grid(row=0, column=1, padx=4)
-        ttk.Button(frame, text="选择", command=self._select_input_dir).grid(row=0, column=2, padx=2)
+        content1 = tk.Frame(sec1, bg=self.C_SURFACE)
+        content1.pack(fill=tk.X)
+        r0 = tk.Frame(content1, bg=self.C_SURFACE)
+        r0.pack(fill=tk.X, padx=12, pady=(10, 4))
+        tk.Label(r0, text="图片文件夹", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=8, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r0, textvariable=self.input_dir, width=55).pack(side=tk.LEFT, padx=4)
+        ttk.Button(r0, text="选择", command=self._select_input_dir,
+                   style="Secondary.TButton").pack(side=tk.LEFT, padx=2)
 
-        ttk.Label(frame, text="输出文件夹").grid(row=1, column=0, sticky="e", pady=6, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.output_dir, width=52).grid(row=1, column=1, padx=4)
-        ttk.Button(frame, text="选择", command=self._select_output_dir).grid(row=1, column=2, padx=2)
+        r1 = tk.Frame(content1, bg=self.C_SURFACE)
+        r1.pack(fill=tk.X, padx=12, pady=(4, 10))
+        tk.Label(r1, text="输出文件夹", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=8, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r1, textvariable=self.output_dir, width=55).pack(side=tk.LEFT, padx=4)
+        ttk.Button(r1, text="选择", command=self._select_output_dir,
+                   style="Secondary.TButton").pack(side=tk.LEFT, padx=2)
 
-        frame2 = ttk.LabelFrame(wrapper, text=" 处理参数 ", padding=14)
-        frame2.pack(fill=tk.X, pady=(0, 10))
+        # 处理参数
+        sec2 = tk.Frame(wrapper, bg=self.C_BG)
+        sec2.pack(fill=tk.X, pady=(0, 12))
+        tk.Label(sec2, text="处理参数", font=(self.FONT_FAMILY, 10, "bold"),
+                fg=self.C_TEXT, bg=self.C_BG).pack(anchor="w", pady=(0, 6))
+        tk.Frame(sec2, bg=self.C_BORDER, height=1).pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(frame2, text="目标宽度").grid(row=0, column=0, sticky="e", padx=(0, 8))
-        ttk.Entry(frame2, textvariable=self.target_width, width=10).grid(row=0, column=1, padx=4)
-        ttk.Label(frame2, text="px").grid(row=0, column=2, padx=(2, 30))
+        content2 = tk.Frame(sec2, bg=self.C_SURFACE)
+        content2.pack(fill=tk.X)
+        r2 = tk.Frame(content2, bg=self.C_SURFACE)
+        r2.pack(fill=tk.X, padx=12, pady=10)
+        tk.Label(r2, text="目标宽度", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=8, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r2, textvariable=self.target_width, width=12).pack(side=tk.LEFT, padx=4)
+        ttk.Label(r2, text="px").pack(side=tk.LEFT, padx=(2, 20))
+        tk.Label(r2, text="压缩质量", font=(self.FONT_FAMILY, 9,),
+                fg=self.C_TEXT, bg=self.C_SURFACE, width=8, anchor="e").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Entry(r2, textvariable=self.quality, width=12).pack(side=tk.LEFT, padx=4)
+        ttk.Label(r2, text="(1-100)").pack(side=tk.LEFT, padx=(2, 0))
 
-        ttk.Label(frame2, text="压缩质量").grid(row=0, column=3, sticky="e", padx=(0, 8))
-        ttk.Entry(frame2, textvariable=self.quality, width=10).grid(row=0, column=4, padx=4)
-        ttk.Label(frame2, text="(1-100)").grid(row=0, column=5, padx=(2, 0))
+        # 操作区
+        action_frame = tk.Frame(wrapper, bg=self.C_BG)
+        action_frame.pack(fill=tk.X, pady=(8, 0))
 
-        self.batch_btn = ttk.Button(wrapper, text="开始处理", command=self._batch_start)
+        self.batch_btn = ttk.Button(action_frame, text="开始处理", command=self._batch_start,
+                                    style="Success.TButton")
         self.batch_btn.pack(pady=(10, 6))
 
         self.batch_status = tk.StringVar(value="准备就绪")
-        tk.Label(wrapper, textvariable=self.batch_status, font=("Microsoft YaHei", 9),
+        tk.Label(action_frame, textvariable=self.batch_status, font=(self.FONT_FAMILY, 10,),
                  fg=self.C_SUCCESS, bg=self.C_BG).pack()
 
         self.quality.trace_add("write", self._on_batch_quality_change)
