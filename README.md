@@ -1,8 +1,8 @@
-# 图片工具 🖼️
+# 图轻剪 PicCraft 🖼️
 
 单文件 Python GUI 工具，支持批量/单张图片的压缩、缩放、裁剪。基于 `tkinter` + `Pillow`。
 
-![Python](https://img.shields.io/badge/Python-3.13-blue) ![Pillow](https://img.shields.io/badge/Pillow-11.x-green) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+**重庆三人众科技有限公司** | QQ: 7602069 | 邮箱: 7602069@qq.com
 
 ---
 

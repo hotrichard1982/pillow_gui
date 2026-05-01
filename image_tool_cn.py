@@ -365,43 +365,134 @@ class CropCanvas(tk.Canvas):
 class ImageToolCN:
     IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
 
+    # 配色
+    C_PRIMARY = "#3498db"
+    C_DARK = "#2c3e50"
+    C_BG = "#f5f6fa"
+    C_SURFACE = "#ffffff"
+    C_ACCENT = "#e74c3c"
+    C_TEXT = "#2c3e50"
+    C_MUTED = "#7f8c8d"
+    C_SUCCESS = "#27ae60"
+
+    def _on_file_drop(self, event):
+        raw = event.data
+        path = raw.strip().strip('{}').strip('"').strip()
+        if not os.path.isfile(path):
+            return
+        if not path.lower().endswith(self.IMG_EXTS):
+            messagebox.showwarning("格式不支持",
+                                   f"不支持的文件格式，请拖入图片文件\n"
+                                   f"支持：JPG、JPEG、PNG、WebP、BMP")
+            return
+        self.single_input.set(path)
+        self._load_single_image()
+
     def __init__(self, root):
         self.root = root
-        self.root.title("图片工具")
-        self.root.geometry("1000x720")
-        self.root.minsize(600, 400)
+        self.root.title("图轻剪 PicCraft")
+        self.root.geometry("1060x780")
+        self.root.minsize(800, 550)
         self.root.resizable(True, True)
+        self.root.configure(bg=self.C_BG)
 
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self._apply_theme()
+
+        # ---- 顶部 ----
+        header = tk.Frame(root, bg=self.C_DARK, height=70)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+
+        logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+        if os.path.isfile(logo_path):
+            self.logo_img = ImageTk.PhotoImage(
+                Image.open(logo_path).resize((44, 44), Image.Resampling.LANCZOS))
+            tk.Label(header, image=self.logo_img, bg=self.C_DARK).pack(
+                side=tk.LEFT, padx=(15, 10), pady=13)
+
+        title_frame = tk.Frame(header, bg=self.C_DARK)
+        title_frame.pack(side=tk.LEFT, pady=10)
+        tk.Label(title_frame, text="图轻剪 PicCraft", font=("Microsoft YaHei", 16, "bold"),
+                 fg=self.C_PRIMARY, bg=self.C_DARK).pack(anchor="w")
+        tk.Label(title_frame, text="重庆三人众科技有限公司",
+                 font=("Microsoft YaHei", 9), fg=self.C_MUTED,
+                 bg=self.C_DARK).pack(anchor="w")
+
+        # ---- 主体 ----
+        body = tk.Frame(root, bg=self.C_BG)
+        body.pack(fill=tk.BOTH, expand=True, padx=8, pady=(8, 0))
+
+        self.notebook = ttk.Notebook(body)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
         self.single_frame = ttk.Frame(self.notebook)
         self.batch_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.single_frame, text="单张处理")
-        self.notebook.add(self.batch_frame, text="批量处理")
+        self.notebook.add(self.single_frame, text="  单张处理  ")
+        self.notebook.add(self.batch_frame, text="  批量处理  ")
 
         self._build_single_tab()
         self._build_batch_tab()
 
+        # ---- 底部 ----
+        footer = tk.Frame(root, bg=self.C_DARK, height=28)
+        footer.pack(fill=tk.X, side=tk.BOTTOM)
+        footer.pack_propagate(False)
+        tk.Label(footer, text="QQ: 7602069  |  7602069@qq.com",
+                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
+                 bg=self.C_DARK).pack(side=tk.RIGHT, padx=15, pady=4)
+        tk.Label(footer, text="© 重庆三人众科技有限公司",
+                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
+                 bg=self.C_DARK).pack(side=tk.LEFT, padx=15, pady=4)
+
+        # ---- 快捷键 ----
+        self.root.bind("<Control-s>", lambda e: self._overwrite_original())
+        self.root.bind("<Control-S>", lambda e: self._overwrite_original())
+        self.root.bind("<Control-Shift-s>", lambda e: self._save_as())
+        self.root.bind("<Control-Shift-S>", lambda e: self._save_as())
+
+    def _apply_theme(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure(".", font=("Microsoft YaHei", 9))
+        style.configure("TNotebook", background=self.C_BG, borderwidth=0)
+        style.configure("TNotebook.Tab", padding=[18, 6], font=("Microsoft YaHei", 10))
+        style.map("TNotebook.Tab",
+                  background=[("selected", self.C_PRIMARY)],
+                  foreground=[("selected", "white")])
+        style.configure("TFrame", background=self.C_BG)
+        style.configure("TLabelframe", background=self.C_SURFACE, borderwidth=1,
+                        relief="solid", padding=12)
+        style.configure("TLabelframe.Label", font=("Microsoft YaHei", 10, "bold"),
+                        foreground=self.C_DARK)
+        style.configure("TButton", padding=[10, 4], font=("Microsoft YaHei", 9))
+        style.map("TButton",
+                  background=[("active", self.C_PRIMARY), ("!disabled", self.C_PRIMARY)],
+                  foreground=[("active", "white"), ("!disabled", "white")])
+        style.configure("Accent.TButton", background=self.C_SUCCESS)
+        style.map("Accent.TButton",
+                  background=[("active", "#219a52"), ("!disabled", self.C_SUCCESS)],
+                  foreground=[("active", "white"), ("!disabled", "white")])
+        style.configure("TEntry", padding=4)
+        style.configure("TCheckbutton", background=self.C_SURFACE)
+        style.configure("TRadiobutton", background=self.C_SURFACE)
+
     # ======================== 单张处理 ========================
-
     def _build_single_tab(self):
-        # 顶部：文件选择
-        top_frame = ttk.Frame(self.single_frame)
-        top_frame.pack(fill=tk.X, padx=10, pady=5)
+        top_frame = tk.Frame(self.single_frame, bg=self.C_BG)
+        top_frame.pack(fill=tk.X, padx=8, pady=(8, 4))
 
-        ttk.Label(top_frame, text="选择图片：").pack(side=tk.LEFT)
+        tk.Label(top_frame, text="选择图片：", bg=self.C_BG, fg=self.C_TEXT,
+                 font=("Microsoft YaHei", 9)).pack(side=tk.LEFT)
         self.single_input = tk.StringVar()
-        ttk.Entry(top_frame, textvariable=self.single_input, width=55).pack(
-            side=tk.LEFT, padx=5)
-        ttk.Button(top_frame, text="浏览...", command=self._select_single_input).pack(
-            side=tk.LEFT)
-        ttk.Button(top_frame, text="加载", command=self._load_single_image).pack(
-            side=tk.LEFT, padx=5)
+        ttk.Entry(top_frame, textvariable=self.single_input, width=52).pack(
+            side=tk.LEFT, padx=6)
+        ttk.Button(top_frame, text="浏 览", command=self._select_single_input).pack(
+            side=tk.LEFT, padx=2)
+        ttk.Button(top_frame, text="加 载", command=self._load_single_image).pack(
+            side=tk.LEFT, padx=2)
 
-        # 下部：左右分栏
         bottom_frame = ttk.Frame(self.single_frame)
-        bottom_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        bottom_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(4, 8))
 
         self.canvas = CropCanvas(bottom_frame)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -410,7 +501,7 @@ class ImageToolCN:
             on_display_changed=self._on_canvas_display_changed,
         )
 
-        ctrl_panel = ttk.Frame(bottom_frame, width=280)
+        ctrl_panel = tk.Frame(bottom_frame, bg=self.C_BG, width=290)
         ctrl_panel.pack(side=tk.RIGHT, fill=tk.Y)
         ctrl_panel.pack_propagate(False)
 
@@ -429,52 +520,39 @@ class ImageToolCN:
         self.single_quality = tk.IntVar(value=85)
         self._internal_update = False
 
-        frame = ttk.LabelFrame(parent, text="尺寸缩放", padding=10)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.LabelFrame(parent, text=" 尺寸缩放 ", padding=12)
+        frame.pack(fill=tk.X, pady=(0, 8))
 
-        ttk.Label(frame, text="宽度：").grid(row=0, column=0, sticky="e", pady=2)
-        ttk.Entry(frame, textvariable=self.resize_width, width=8).grid(
-            row=0, column=1, padx=5)
-        ttk.Label(frame, text="px").grid(row=0, column=2, sticky="w")
+        ttk.Label(frame, text="宽度").grid(row=0, column=0, sticky="e", pady=3, padx=(0, 6))
+        ttk.Entry(frame, textvariable=self.resize_width, width=9).grid(row=0, column=1)
+        ttk.Label(frame, text="px").grid(row=0, column=2, padx=(4, 0))
 
-        ttk.Label(frame, text="高度：").grid(row=1, column=0, sticky="e", pady=2)
-        ttk.Entry(frame, textvariable=self.resize_height, width=8).grid(
-            row=1, column=1, padx=5)
-        ttk.Label(frame, text="px").grid(row=1, column=2, sticky="w")
+        ttk.Label(frame, text="高度").grid(row=1, column=0, sticky="e", pady=3, padx=(0, 6))
+        ttk.Entry(frame, textvariable=self.resize_height, width=9).grid(row=1, column=1)
+        ttk.Label(frame, text="px").grid(row=1, column=2, padx=(4, 0))
 
-        ttk.Checkbutton(frame, text="保持原图比例",
-                        variable=self.keep_aspect,
+        ttk.Checkbutton(frame, text="保持原图比例", variable=self.keep_aspect,
                         command=self._on_keep_aspect_toggle).grid(
-            row=2, column=0, columnspan=3, pady=5)
+            row=2, column=0, columnspan=3, pady=6, sticky="w", padx=(0, 0))
 
-        ttk.Label(frame, text="质量：").grid(row=3, column=0, sticky="e", pady=2)
-        ttk.Entry(frame, textvariable=self.single_quality, width=8).grid(
-            row=3, column=1, padx=5)
-        ttk.Label(frame, text="(1-100)").grid(row=3, column=2, sticky="w")
+        ttk.Label(frame, text="质量").grid(row=3, column=0, sticky="e", pady=3, padx=(0, 6))
+        q_frame = ttk.Frame(frame)
+        q_frame.grid(row=3, column=1, columnspan=2, sticky="w")
+        ttk.Entry(q_frame, textvariable=self.single_quality, width=6).pack(side=tk.LEFT)
+        ttk.Label(q_frame, text=" (1-100)").pack(side=tk.LEFT)
 
         self.lbl_png_warn = tk.Label(frame, text="⚠ PNG 为无损格式，压缩无效，保存时默认转 JPG",
-                                     fg="#c0392b", font=("", 8))
-        self.lbl_png_warn.grid(row=4, column=0, columnspan=3, pady=(3, 0))
+                                     fg=self.C_ACCENT, font=("Microsoft YaHei", 7), bg=self.C_SURFACE)
+        self.lbl_png_warn.grid(row=4, column=0, columnspan=3, pady=(4, 0))
         self.lbl_png_warn.grid_remove()
 
-        self.btn_resize = ttk.Button(frame, text="应用缩放",
-                                      command=self._apply_resize,
-                                      state=tk.DISABLED)
-        self.btn_resize.grid(row=5, column=0, columnspan=3, pady=(10, 0))
+        self.btn_resize = ttk.Button(frame, text="应用缩放", command=self._apply_resize,
+                                     state=tk.DISABLED)
+        self.btn_resize.grid(row=5, column=0, columnspan=3, pady=(12, 0))
 
         self.resize_width.trace_add("write", self._on_resize_width_change)
         self.resize_height.trace_add("write", self._on_resize_height_change)
         self.single_quality.trace_add("write", self._on_quality_change)
-
-    def _on_quality_change(self, *args):
-        try:
-            v = self.single_quality.get()
-        except Exception:
-            return
-        if v < 1:
-            self.single_quality.set(1)
-        elif v > 100:
-            self.single_quality.set(100)
 
     def _build_single_crop_panel(self, parent):
         self.crop_x = tk.IntVar(value=0)
@@ -482,208 +560,171 @@ class ImageToolCN:
         self.crop_w = tk.IntVar(value=100)
         self.crop_h = tk.IntVar(value=100)
 
-        frame = ttk.LabelFrame(parent, text="自由裁剪", padding=10)
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.LabelFrame(parent, text=" 自由裁剪 ", padding=12)
+        frame.pack(fill=tk.X, pady=(0, 8))
 
-        ttk.Label(frame, text="X：").grid(row=0, column=0, sticky="e", pady=2)
-        ttk.Entry(frame, textvariable=self.crop_x, width=7).grid(
-            row=0, column=1, padx=2)
-        ttk.Label(frame, text="Y：").grid(row=0, column=2, sticky="e",
-                                          pady=2, padx=(10, 0))
-        ttk.Entry(frame, textvariable=self.crop_y, width=7).grid(
-            row=0, column=3, padx=2)
+        ttk.Label(frame, text="X").grid(row=0, column=0, sticky="e", pady=3, padx=(0, 4))
+        ttk.Entry(frame, textvariable=self.crop_x, width=7).grid(row=0, column=1, padx=2)
+        ttk.Label(frame, text="Y").grid(row=0, column=2, sticky="e", pady=3, padx=(10, 4))
+        ttk.Entry(frame, textvariable=self.crop_y, width=7).grid(row=0, column=3, padx=2)
 
-        ttk.Label(frame, text="宽：").grid(row=1, column=0, sticky="e", pady=2)
-        ttk.Entry(frame, textvariable=self.crop_w, width=7).grid(
-            row=1, column=1, padx=2)
-        ttk.Label(frame, text="高：").grid(row=1, column=2, sticky="e",
-                                          pady=2, padx=(10, 0))
-        ttk.Entry(frame, textvariable=self.crop_h, width=7).grid(
-            row=1, column=3, padx=2)
+        ttk.Label(frame, text="宽").grid(row=1, column=0, sticky="e", pady=3, padx=(0, 4))
+        ttk.Entry(frame, textvariable=self.crop_w, width=7).grid(row=1, column=1, padx=2)
+        ttk.Label(frame, text="高").grid(row=1, column=2, sticky="e", pady=3, padx=(10, 4))
+        ttk.Entry(frame, textvariable=self.crop_h, width=7).grid(row=1, column=3, padx=2)
 
         btn_row = ttk.Frame(frame)
-        btn_row.grid(row=2, column=0, columnspan=4, pady=(8, 0))
-        ttk.Button(btn_row, text="应用数值",
-                   command=self._apply_crop_numeric).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row, text="清除",
-                   command=self._clear_crop).pack(side=tk.LEFT, padx=2)
+        btn_row.grid(row=2, column=0, columnspan=4, pady=(10, 0))
+        ttk.Button(btn_row, text="应用数值", command=self._apply_crop_numeric).pack(
+            side=tk.LEFT, padx=2)
+        ttk.Button(btn_row, text="清除", command=self._clear_crop).pack(side=tk.LEFT, padx=2)
 
-        self.btn_crop = ttk.Button(frame, text="应用裁剪",
-                                   command=self._apply_crop,
+        self.btn_crop = ttk.Button(frame, text="应用裁剪", command=self._apply_crop,
                                    state=tk.DISABLED)
         self.btn_crop.grid(row=3, column=0, columnspan=4, pady=(8, 0))
 
     def _build_single_action_panel(self, parent):
         frame = ttk.Frame(parent)
-        frame.pack(fill=tk.X, pady=(5, 0))
+        frame.pack(fill=tk.X, pady=(6, 0))
 
-        self.btn_save_as = ttk.Button(frame, text="另存为",
-                                      command=self._save_as,
+        tk.Label(frame, text="保存", bg=self.C_BG, fg=self.C_TEXT,
+                 font=("Microsoft YaHei", 9, "bold")).pack(anchor="w", pady=(0, 3))
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X)
+
+        self.btn_save_as = ttk.Button(btn_frame, text="另存为", command=self._save_as,
                                       state=tk.DISABLED)
-        self.btn_save_as.pack(side=tk.LEFT, padx=(0, 5))
-
-        self.btn_overwrite = ttk.Button(frame, text="覆盖原图",
-                                        command=self._overwrite_original,
+        self.btn_save_as.pack(side=tk.LEFT, padx=(0, 4))
+        self.btn_overwrite = ttk.Button(btn_frame, text="覆盖原图", command=self._overwrite_original,
                                         state=tk.DISABLED)
-        self.btn_overwrite.pack(side=tk.LEFT, padx=(0, 5))
-
-        self.btn_reset = ttk.Button(frame, text="重置",
-                                    command=self._reset_preview,
+        self.btn_overwrite.pack(side=tk.LEFT, padx=(0, 4))
+        self.btn_reset = ttk.Button(btn_frame, text="重置", command=self._reset_preview,
                                     state=tk.DISABLED)
         self.btn_reset.pack(side=tk.LEFT)
 
+        shortcuts = tk.Label(frame, text="Ctrl+S 覆盖原图  |  Ctrl+Shift+S 另存为",
+                             font=("Microsoft YaHei", 7), fg=self.C_MUTED, bg=self.C_BG)
+        shortcuts.pack(anchor="w", pady=(3, 0))
+
         self.single_hint = tk.StringVar(
-            value="提示：拖拽鼠标在图片上选择裁剪区域，拖动方框手柄可调整")
-        ttk.Label(parent, textvariable=self.single_hint,
-                  foreground="gray").pack(pady=(8, 0))
+            value="提示：拖拽鼠标选择裁剪区域，拖动方框手柄可调整")
+        tk.Label(frame, textvariable=self.single_hint,
+                 font=("Microsoft YaHei", 8), fg=self.C_MUTED,
+                 bg=self.C_BG).pack(anchor="w", pady=(8, 0))
 
-        self.root.bind("<Control-s>", lambda e: self._overwrite_original())
-        self.root.bind("<Control-S>", lambda e: self._overwrite_original())
-        self.root.bind("<Control-Shift-s>", lambda e: self._save_as())
-        self.root.bind("<Control-Shift-S>", lambda e: self._save_as())
-
-    # ---------- 回调 ----------
-
+    # ---------- 回调（保持不变）----------
     def _on_canvas_crop_changed(self, rect):
         if rect is None:
-            self.crop_x.set(0)
-            self.crop_y.set(0)
-            self.crop_w.set(100)
-            self.crop_h.set(100)
+            self.crop_x.set(0); self.crop_y.set(0)
+            self.crop_w.set(100); self.crop_h.set(100)
             self.btn_crop.config(state=tk.DISABLED)
         else:
             x, y, w, h = rect
-            self.crop_x.set(x)
-            self.crop_y.set(y)
-            self.crop_w.set(w)
-            self.crop_h.set(h)
+            self.crop_x.set(x); self.crop_y.set(y)
+            self.crop_w.set(w); self.crop_h.set(h)
             self.btn_crop.config(state=tk.NORMAL)
 
     def _on_canvas_display_changed(self, w, h):
         self._internal_update = True
         try:
-            self.resize_width.set(w)
-            self.resize_height.set(h)
+            self.resize_width.set(w); self.resize_height.set(h)
         finally:
             self._internal_update = False
         ow, oh = self.canvas.original_image.size
         fmt = self.canvas.original_image.format
         hint = f"原图：{ow}×{oh}  |  当前：{w}×{h}"
         if fmt == "PNG":
-            hint += "  |  ⚠ PNG 无法压缩，保存时默认转 JPG"
+            hint += "  |  ⚠ PNG 无法压缩"
             self.lbl_png_warn.grid()
         else:
             self.lbl_png_warn.grid_remove()
-        hint += "  |  拖拽手柄编辑裁剪框"
         self.single_hint.set(hint)
 
     def _on_resize_width_change(self, *args):
         if self._internal_update:
             return
         if self.keep_aspect.get() and self.canvas.display_image:
-            try:
-                w = self.resize_width.get()
+            try: w = self.resize_width.get()
             except Exception:
-                import traceback; traceback.print_exc()
-                return
-            if w <= 0:
-                return
+                import traceback; traceback.print_exc(); return
+            if w <= 0: return
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            try:
-                self.resize_height.set(int(w * dh / dw))
-            finally:
-                self._internal_update = False
+            try: self.resize_height.set(int(w * dh / dw))
+            finally: self._internal_update = False
 
     def _on_resize_height_change(self, *args):
         if self._internal_update:
             return
         if self.keep_aspect.get() and self.canvas.display_image:
-            try:
-                h = self.resize_height.get()
+            try: h = self.resize_height.get()
             except Exception:
-                import traceback; traceback.print_exc()
-                return
-            if h <= 0:
-                return
+                import traceback; traceback.print_exc(); return
+            if h <= 0: return
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            try:
-                self.resize_width.set(int(h * dw / dh))
-            finally:
-                self._internal_update = False
+            try: self.resize_width.set(int(h * dw / dh))
+            finally: self._internal_update = False
 
     def _on_keep_aspect_toggle(self):
         if self.keep_aspect.get() and self.canvas.display_image:
             dw, dh = self.canvas.display_image.size
             self._internal_update = True
-            try:
-                self.resize_height.set(
-                    int(self.resize_width.get() * dh / dw))
-            finally:
-                self._internal_update = False
+            try: self.resize_height.set(int(self.resize_width.get() * dh / dw))
+            finally: self._internal_update = False
+
+    def _on_quality_change(self, *args):
+        try: v = self.single_quality.get()
+        except Exception: return
+        if v < 1: self.single_quality.set(1)
+        elif v > 100: self.single_quality.set(100)
+
+    def _on_batch_quality_change(self, *args):
+        try: v = self.quality.get()
+        except Exception: return
+        if v < 1: self.quality.set(1)
+        elif v > 100: self.quality.set(100)
 
     # ---------- 操作 ----------
-
     def _apply_resize(self):
-        if self.canvas.display_image is None:
-            return
-        try:
-            tw = self.resize_width.get()
-            th = self.resize_height.get()
+        if self.canvas.display_image is None: return
+        try: tw = self.resize_width.get(); th = self.resize_height.get()
         except Exception:
-            messagebox.showwarning("提示", "请输入有效的尺寸数值")
-            return
+            messagebox.showwarning("提示", "请输入有效的尺寸数值"); return
         if tw <= 0 or th <= 0:
-            messagebox.showwarning("提示", "宽度和高度必须大于 0")
-            return
+            messagebox.showwarning("提示", "宽度和高度必须大于 0"); return
         self.canvas.apply_resize(tw, th)
 
     def _apply_crop(self):
         if not self.canvas.has_crop():
-            messagebox.showwarning("提示", "请先在图片上选择裁剪区域")
-            return
-        self.canvas.apply_crop()
-        self.btn_crop.config(state=tk.DISABLED)
+            messagebox.showwarning("提示", "请先在图片上选择裁剪区域"); return
+        self.canvas.apply_crop(); self.btn_crop.config(state=tk.DISABLED)
 
     def _apply_crop_numeric(self):
-        try:
-            x = self.crop_x.get()
-            y = self.crop_y.get()
-            w = self.crop_w.get()
-            h = self.crop_h.get()
+        try: x = self.crop_x.get(); y = self.crop_y.get()
         except Exception:
-            messagebox.showwarning("提示", "请输入有效的裁剪数值")
-            return
+            messagebox.showwarning("提示", "请输入有效的裁剪数值"); return
+        try: w = self.crop_w.get(); h = self.crop_h.get()
+        except Exception:
+            messagebox.showwarning("提示", "请输入有效的裁剪数值"); return
         self.canvas.set_crop_rect_numeric(x, y, w, h)
-        if self.canvas.has_crop():
-            self.btn_crop.config(state=tk.NORMAL)
+        if self.canvas.has_crop(): self.btn_crop.config(state=tk.NORMAL)
 
-    def _clear_crop(self):
-        self.canvas.clear_crop()
+    def _clear_crop(self): self.canvas.clear_crop()
 
     def _save_as(self):
-        if self.canvas.display_image is None:
-            return
-
+        if self.canvas.display_image is None: return
         orig_fmt = (self.canvas.original_image.format
                     if self.canvas.original_image else None)
-        ext_map = {"JPEG": ".jpg", "PNG": ".png",
-                   "WEBP": ".webp", "BMP": ".bmp"}
-        # PNG/BMP 等无损格式默认转 JPG，让压缩质量生效
-        if orig_fmt in ("PNG", "BMP"):
-            def_ext = ".jpg"
-        else:
-            def_ext = ext_map.get(orig_fmt, ".jpg")
-
+        ext_map = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp", "BMP": ".bmp"}
+        if orig_fmt in ("PNG", "BMP"): def_ext = ".jpg"
+        else: def_ext = ext_map.get(orig_fmt, ".jpg")
         out_path = filedialog.asksaveasfilename(
-            title="另存为",
-            defaultextension=def_ext,
+            title="另存为", defaultextension=def_ext,
             filetypes=[("JPEG", "*.jpg"), ("PNG", "*.png"),
                        ("WebP", "*.webp"), ("BMP", "*.bmp")])
-        if not out_path:
-            return
-
+        if not out_path: return
         try:
             img = self.canvas.get_display_image()
             self._save_image(img, out_path)
@@ -693,30 +734,21 @@ class ImageToolCN:
             messagebox.showerror("错误", f"保存失败：{e}")
 
     def _overwrite_original(self):
-        if self.canvas.original_image is None:
-            return
+        if self.canvas.original_image is None: return
         src = self.canvas.original_image
-        if not (hasattr(src, 'filename') and src.filename
-                and os.path.isfile(src.filename)):
-            messagebox.showwarning("提示", "原图路径无效，无法覆盖。请使用「另存为」")
-            return
+        if not (hasattr(src, 'filename') and src.filename and os.path.isfile(src.filename)):
+            messagebox.showwarning("提示", "原图路径无效，无法覆盖。请使用「另存为」"); return
         orig_fmt = src.format
         if orig_fmt in ("PNG", "BMP"):
             new_path = os.path.splitext(src.filename)[0] + ".jpg"
-            ok = messagebox.askyesno(
-                "确认转换",
-                f"PNG 为无损格式，压缩无效。\n"
-                f"将另存为 JPG：\n{new_path}\n\n"
-                f"原文件保留不变。是否继续？")
-            if not ok:
-                return
+            ok = messagebox.askyesno("确认转换",
+                                     f"PNG 为无损格式，压缩无效。\n将另存为 JPG：\n{new_path}\n\n原文件保留不变。是否继续？")
+            if not ok: return
             out_path = new_path
         else:
             out_path = src.filename
-            ok = messagebox.askyesno(
-                "确认覆盖", f"将覆盖原图：\n{src.filename}\n\n确定继续？")
-            if not ok:
-                return
+            ok = messagebox.askyesno("确认覆盖", f"将覆盖原图：\n{src.filename}\n\n确定继续？")
+            if not ok: return
         try:
             old_info = ""
             if os.path.exists(out_path):
@@ -725,66 +757,42 @@ class ImageToolCN:
             self._save_image(img, out_path)
             new_size = os.path.getsize(out_path) / 1024
             messagebox.showinfo("完成",
-                f"保存成功！\n{out_path}\n"
-                f"大小：{new_size:.0f} KB{old_info}")
+                f"保存成功！\n{out_path}\n大小：{new_size:.0f} KB{old_info}")
         except Exception as e:
-            messagebox.showerror("错误", f"覆盖失败：{e}")
-
-    def _save_as_old_redirect(self):
-        self._save_as()
+            messagebox.showerror("错误", f"保存失败：{e}")
 
     def _reset_preview(self):
-        self.canvas.reset_to_original()
-        self.btn_crop.config(state=tk.DISABLED)
+        self.canvas.reset_to_original(); self.btn_crop.config(state=tk.DISABLED)
 
     def _save_image(self, img, out_path):
         ext = os.path.splitext(out_path)[1].lower()
         fmt = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG",
                ".webp": "WEBP", ".bmp": "BMP"}.get(ext, "JPEG")
         if fmt in ("JPEG", "WEBP"):
-            if img.mode not in ("RGB", "L"):
-                img = img.convert("RGB")
+            if img.mode not in ("RGB", "L"): img = img.convert("RGB")
         elif fmt == "PNG" and img.mode not in ("RGB", "RGBA", "L", "P"):
             img = img.convert("RGBA")
         save_kwargs = {}
         q = max(1, min(100, self.single_quality.get()))
         if fmt == "JPEG":
-            save_kwargs["quality"] = q
-            save_kwargs["optimize"] = True
+            save_kwargs["quality"] = q; save_kwargs["optimize"] = True
         elif fmt == "WEBP":
             save_kwargs["quality"] = q
         elif fmt == "PNG":
-            save_kwargs["compress_level"] = max(
-                4, min(9, 9 - (q - 1) * 5 // 99))
+            save_kwargs["compress_level"] = max(4, min(9, 9 - (q - 1) * 5 // 99))
         img.save(out_path, fmt, **save_kwargs)
 
     def _select_single_input(self):
         path = filedialog.askopenfilename(
             title="选择图片",
-            filetypes=[("图片文件", "*.jpg *.jpeg *.png *.webp *.bmp"),
-                       ("所有文件", "*.*")])
+            filetypes=[("图片文件", "*.jpg *.jpeg *.png *.webp *.bmp"), ("所有文件", "*.*")])
         if path:
-            self.single_input.set(path)
-            self._load_single_image()
-
-    def _on_file_drop(self, event):
-        raw = event.data
-        path = raw.strip().strip('{}').strip('"').strip()
-        if not os.path.isfile(path):
-            return
-        if not path.lower().endswith(self.IMG_EXTS):
-            messagebox.showwarning("格式不支持",
-                                   f"不支持的文件格式，请拖入图片文件\n"
-                                   f"支持：JPG、JPEG、PNG、WebP、BMP")
-            return
-        self.single_input.set(path)
-        self._load_single_image()
+            self.single_input.set(path); self._load_single_image()
 
     def _load_single_image(self):
         path = self.single_input.get()
         if not path or not os.path.isfile(path):
-            messagebox.showwarning("提示", "请先选择有效的图片文件")
-            return
+            messagebox.showwarning("提示", "请先选择有效的图片文件"); return
         if self.canvas.load_image(path):
             self.btn_resize.config(state=tk.NORMAL)
             self.btn_save_as.config(state=tk.NORMAL)
@@ -795,124 +803,94 @@ class ImageToolCN:
             messagebox.showerror("错误", "无法打开图片文件")
 
     # ======================== 批量处理 ========================
-
     def _build_batch_tab(self):
         self.input_dir = tk.StringVar()
         self.output_dir = tk.StringVar()
         self.target_width = tk.IntVar(value=1000)
         self.quality = tk.IntVar(value=60)
 
-        frame = ttk.LabelFrame(self.batch_frame, text="文件夹设置", padding=10)
-        frame.pack(fill=tk.X, padx=10, pady=10)
+        wrapper = tk.Frame(self.batch_frame, bg=self.C_BG)
+        wrapper.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        ttk.Label(frame, text="图片文件夹：").grid(row=0, column=0, sticky="e", pady=5)
-        ttk.Entry(frame, textvariable=self.input_dir, width=55).grid(
-            row=0, column=1, padx=5)
-        ttk.Button(frame, text="选择", command=self._select_input_dir).grid(
-            row=0, column=2)
+        frame = ttk.LabelFrame(wrapper, text=" 文件夹设置 ", padding=14)
+        frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(frame, text="输出文件夹：").grid(row=1, column=0, sticky="e", pady=5)
-        ttk.Entry(frame, textvariable=self.output_dir, width=55).grid(
-            row=1, column=1, padx=5)
-        ttk.Button(frame, text="选择", command=self._select_output_dir).grid(
-            row=1, column=2)
+        ttk.Label(frame, text="图片文件夹").grid(row=0, column=0, sticky="e", pady=6, padx=(0, 8))
+        ttk.Entry(frame, textvariable=self.input_dir, width=52).grid(row=0, column=1, padx=4)
+        ttk.Button(frame, text="选择", command=self._select_input_dir).grid(row=0, column=2, padx=2)
 
-        frame2 = ttk.LabelFrame(self.batch_frame, text="处理参数", padding=10)
-        frame2.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Label(frame, text="输出文件夹").grid(row=1, column=0, sticky="e", pady=6, padx=(0, 8))
+        ttk.Entry(frame, textvariable=self.output_dir, width=52).grid(row=1, column=1, padx=4)
+        ttk.Button(frame, text="选择", command=self._select_output_dir).grid(row=1, column=2, padx=2)
 
-        ttk.Label(frame2, text="目标宽度 (px)：").grid(row=0, column=0, sticky="e")
-        ttk.Entry(frame2, textvariable=self.target_width, width=8).grid(
-            row=0, column=1, padx=5)
-        ttk.Label(frame2, text="压缩质量 (1-100)：").grid(
-            row=0, column=2, sticky="e", padx=(20, 0))
-        ttk.Entry(frame2, textvariable=self.quality, width=8).grid(
-            row=0, column=3, padx=5)
+        frame2 = ttk.LabelFrame(wrapper, text=" 处理参数 ", padding=14)
+        frame2.pack(fill=tk.X, pady=(0, 10))
 
-        self.batch_btn = ttk.Button(self.batch_frame, text="开始处理",
-                                    command=self._batch_start)
-        self.batch_btn.pack(pady=10)
+        ttk.Label(frame2, text="目标宽度").grid(row=0, column=0, sticky="e", padx=(0, 8))
+        ttk.Entry(frame2, textvariable=self.target_width, width=10).grid(row=0, column=1, padx=4)
+        ttk.Label(frame2, text="px").grid(row=0, column=2, padx=(2, 30))
+
+        ttk.Label(frame2, text="压缩质量").grid(row=0, column=3, sticky="e", padx=(0, 8))
+        ttk.Entry(frame2, textvariable=self.quality, width=10).grid(row=0, column=4, padx=4)
+        ttk.Label(frame2, text="(1-100)").grid(row=0, column=5, padx=(2, 0))
+
+        self.batch_btn = ttk.Button(wrapper, text="开始处理", command=self._batch_start)
+        self.batch_btn.pack(pady=(10, 6))
 
         self.batch_status = tk.StringVar(value="准备就绪")
-        ttk.Label(self.batch_frame, textvariable=self.batch_status,
-                  foreground="green").pack()
+        tk.Label(wrapper, textvariable=self.batch_status, font=("Microsoft YaHei", 9),
+                 fg=self.C_SUCCESS, bg=self.C_BG).pack()
 
         self.quality.trace_add("write", self._on_batch_quality_change)
 
-    def _on_batch_quality_change(self, *args):
-        try:
-            v = self.quality.get()
-        except Exception:
-            return
-        if v < 1:
-            self.quality.set(1)
-        elif v > 100:
-            self.quality.set(100)
-
     def _select_input_dir(self):
         folder = filedialog.askdirectory(title="选择图片文件夹")
-        if folder:
-            self.input_dir.set(folder)
+        if folder: self.input_dir.set(folder)
 
     def _select_output_dir(self):
         folder = filedialog.askdirectory(title="选择输出文件夹")
-        if folder:
-            self.output_dir.set(folder)
+        if folder: self.output_dir.set(folder)
 
     def _batch_start(self):
         if not self.input_dir.get() or not self.output_dir.get():
-            messagebox.showwarning("提示", "请先选择输入和输出文件夹")
-            return
+            messagebox.showwarning("提示", "请先选择输入和输出文件夹"); return
         output_folder = self.output_dir.get()
         if os.path.isdir(output_folder):
             existing = [f for f in os.listdir(output_folder)
                         if f.lower().endswith(self.IMG_EXTS)]
             if existing:
-                ok = messagebox.askyesno(
-                    "确认", f"输出文件夹中已有 {len(existing)} 张图片，"
-                            f"同名文件将被覆盖。\n是否继续？")
-                if not ok:
-                    return
+                ok = messagebox.askyesno("确认",
+                    f"输出文件夹中已有 {len(existing)} 张图片，同名文件将被覆盖。\n是否继续？")
+                if not ok: return
         threading.Thread(target=self._batch_worker, daemon=True).start()
 
     def _batch_worker(self):
         self.root.after(0, lambda: self.batch_btn.config(state=tk.DISABLED))
         self.root.after(0, lambda: self.batch_status.set("正在处理..."))
-
         input_folder = self.input_dir.get()
         output_folder = self.output_dir.get()
         os.makedirs(output_folder, exist_ok=True)
-
-        exts = self.IMG_EXTS
-        files = [f for f in os.listdir(input_folder)
-                 if f.lower().endswith(exts)]
-        total = len(files)
-        errors = []
-
+        files = [f for f in os.listdir(input_folder) if f.lower().endswith(self.IMG_EXTS)]
+        total = len(files); errors = []
         for i, f in enumerate(files, 1):
             in_path = os.path.join(input_folder, f)
             out_path = os.path.join(output_folder, f)
             try:
                 img = Image.open(in_path).convert("RGB")
                 w, h = img.size
-                tw = self.target_width.get()
-                th = int(h * (tw / w))
+                tw = self.target_width.get(); th = int(h * (tw / w))
                 img = img.resize((tw, th), Image.Resampling.LANCZOS)
-                img.save(out_path, "JPEG",
-                         quality=self.quality.get(), optimize=True)
+                img.save(out_path, "JPEG", quality=self.quality.get(), optimize=True)
             except Exception as e:
-                errors.append(f)
-                print(f"处理失败 {f}: {e}")
+                errors.append(f); print(f"处理失败 {f}: {e}")
             self.root.after(0, lambda i=i, t=total:
                            self.batch_status.set(f"处理中... {i}/{t}"))
-
         self.root.after(0, lambda t=total, e=errors:
-                       self.batch_status.set(
-                           f"完成！共 {t} 张"
-                           + (f"，{len(e)} 张失败" if e else "")))
+                       self.batch_status.set(f"完成！共 {t} 张"
+                                             + (f"，{len(e)} 张失败" if e else "")))
         self.root.after(0, lambda: self.batch_btn.config(state=tk.NORMAL))
         msg = f"已处理 {total} 张图片！"
-        if errors:
-            msg += f"\n失败 {len(errors)} 张：{', '.join(errors[:5])}"
+        if errors: msg += f"\n失败 {len(errors)} 张：{', '.join(errors[:5])}"
         self.root.after(0, lambda m=msg: messagebox.showinfo("完成", m))
 
 
