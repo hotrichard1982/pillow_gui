@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
-    ['image_tool_cn.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
     datas=[('logo.png', '.')],
-    hiddenimports=['tkinterdnd2', 'webbrowser'],
+    hiddenimports=[
+        'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
+        'webbrowser', 'PIL', 'PIL.Image',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -22,7 +24,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='image_tool_cn',
+    name='PicCraft',
     debug=False,
     icon='logo.ico',
     bootloader_ignore_signals=False,
