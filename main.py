@@ -249,7 +249,7 @@ class MainWindow(QMainWindow):
         right.setSpacing(2)
         right.setAlignment(Qt.AlignRight)
 
-        row1 = QLabel("© 重庆三人众科技有限公司  |  v20260503")
+        row1 = QLabel("© 重庆三人众科技有限公司  |  v20260506")
         row1.setObjectName("infoLabel")
         right.addWidget(row1)
 

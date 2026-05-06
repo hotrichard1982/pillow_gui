@@ -12,15 +12,14 @@
 
 ### 单张处理
 - 缩放：按目标尺寸等比或自由缩放，支持保持原图比例
-- 裁剪：鼠标拖拽选区 + 8 个可拖动手柄（四角/四边）+ 数值输入，ESC 取消
-- 实时预览：半透明裁剪遮罩，即时反馈
-- 拖拽加载：从资源管理器直接拖入图片
+- 裁剪：鼠标拖拽选区 + 8 个可拖动手柄 + 数值输入，ESC 取消
+- 实时预览：半透明裁剪遮罩，拖拽或选择图片即加载
+- 拖拽加载：从资源管理器直接拖入图片到画布区域
 - 另存为（Ctrl+Shift+S）/ 覆盖原图（Ctrl+S）
 
 ### 批量处理
 - 按目标宽度等比缩放文件夹内所有图片
-- JPEG 压缩质量可调（1-100）
-- QThread 后台处理，进度实时显示
+- JPEG 压缩质量可调，QThread 后台处理，进度实时显示
 
 ### 关于我们
 - 版本号、技术栈依赖、开源协议、公司信息
@@ -45,7 +44,6 @@ pyinstaller image_tool_cn.spec
 ## 运行测试
 
 ```bash
-pip install pytest
 python -m pytest test_image_tool.py -v
 ```
 
@@ -61,9 +59,10 @@ PicCraft/
 │   ├── single_tab.py      # 单张处理
 │   ├── batch_tab.py       # 批量处理（QThread）
 │   └── about_tab.py       # 关于我们
-├── image_tool_cn.spec     # PyInstaller 打包配置
+├── utils/image_ops.py     # 图片保存/格式转换
+├── image_tool_cn.spec     # PyInstaller 打包
 ├── logo.png / logo.ico
-└── test_image_tool.py     # 16 个 pytest
+└── test_image_tool.py     # 27 个 pytest
 ```
 
 ---

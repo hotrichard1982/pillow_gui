@@ -46,7 +46,7 @@ class AboutTab(QWidget):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        version = QLabel("v20260503")
+        version = QLabel("v20260506")
         version.setStyleSheet("font-size: 13px; color: #64748b;")
         version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)

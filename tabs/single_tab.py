@@ -250,10 +250,12 @@ class SingleTab(QWidget):
             "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp);;所有文件 (*.*)")
         if path:
             self.file_input.setText(path)
-            self._load_image()
+            self._do_load(path)
 
     def _load_image(self):
-        path = self.file_input.text()
+        self._do_load(self.file_input.text())
+
+    def _do_load(self, path):
         if not path or not os.path.isfile(path):
             QMessageBox.warning(self, "提示", "请先选择有效的图片文件")
             return
@@ -430,12 +432,7 @@ class SingleTab(QWidget):
     def _on_file_dropped(self, path):
         if path.lower().endswith(IMG_EXTS):
             self.file_input.setText(path)
-            if self.canvas.load_image(path):
-                self.resize_btn.setEnabled(True)
-                self.save_as_btn.setEnabled(True)
-                self.overwrite_btn.setEnabled(True)
-                self.reset_btn.setEnabled(True)
-                self.crop_btn.setEnabled(False)
+            self._do_load(path)
         else:
             QMessageBox.warning(self, "格式不支持",
                 "不支持的文件格式\n支持：JPG、JPEG、PNG、WebP、BMP")

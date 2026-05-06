@@ -9,5 +9,7 @@ AGENTS.md
 *.jpg
 *.jpeg
 *.bmp
+!logo.png
+!logo.ico
 *.spec.bak
 *.log
