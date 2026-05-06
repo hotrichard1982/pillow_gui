@@ -85,7 +85,7 @@ class CropCanvas(QGraphicsView):
             self.original_image = img
             self.display_image = img.copy()
             self.crop_rect = None
-            self._redraw_crop()
+            self._update_display()
             self.display_changed.emit(*self.display_image.size)
             return True
         except Exception:
@@ -272,7 +272,7 @@ class CropCanvas(QGraphicsView):
         self._drag_start = self._to_image(vx, vy)
         self._drag_start_rect = None
         self.crop_rect = None
-        self._update_display()
+        self._redraw_crop()
 
     def mouseMoveEvent(self, event):
         vx, vy = event.position().x(), event.position().y()
