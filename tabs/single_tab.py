@@ -430,7 +430,12 @@ class SingleTab(QWidget):
     def _on_file_dropped(self, path):
         if path.lower().endswith(IMG_EXTS):
             self.file_input.setText(path)
-            self._load_image()
+            if self.canvas.load_image(path):
+                self.resize_btn.setEnabled(True)
+                self.save_as_btn.setEnabled(True)
+                self.overwrite_btn.setEnabled(True)
+                self.reset_btn.setEnabled(True)
+                self.crop_btn.setEnabled(False)
         else:
             QMessageBox.warning(self, "格式不支持",
                 "不支持的文件格式\n支持：JPG、JPEG、PNG、WebP、BMP")

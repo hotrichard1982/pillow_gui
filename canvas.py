@@ -62,6 +62,7 @@ class CropCanvas(QGraphicsView):
         self.setCursor(Qt.CrossCursor)
         self.viewport().setMouseTracking(True)
         self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
 
     # ───── 拖放支持 ─────
 
