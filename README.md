@@ -61,7 +61,6 @@ PicCraft/
 │   ├── single_tab.py      # 单张处理
 │   ├── batch_tab.py       # 批量处理（QThread）
 │   └── about_tab.py       # 关于我们
-├── utils/image_ops.py     # 图片保存/格式转换
 ├── image_tool_cn.spec     # PyInstaller 打包配置
 ├── logo.png / logo.ico
 └── test_image_tool.py     # 16 个 pytest

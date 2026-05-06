@@ -5,7 +5,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QPixmap, QImage, QPainter, QColor, QPen, QBrush, QCursor,
-    QPainterPath, QFont, QFontMetrics
+    QPainterPath, QFont, QFontMetrics, QDragEnterEvent, QDropEvent
 )
 from PIL import Image
 
@@ -28,9 +28,11 @@ class CropCanvas(QGraphicsView):
 
     HANDLE_SIZE = 8      # 手柄显示尺寸（view px）
     MIN_CROP_SIZE = 5    # 最小裁剪尺寸（image px）
+    _CROP_TAG = "crop_overlay"  # scene item tag
 
     crop_changed = Signal(object)    # (x,y,w,h) or None
     display_changed = Signal(int, int)  # (w, h)
+    file_dropped = Signal(str)      # 拖放文件路径
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -43,7 +45,7 @@ class CropCanvas(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
         self.setFrameShape(QGraphicsView.NoFrame)
-        self.setBackgroundBrush(QBrush(QColor("#f1f5f9")))
+        self.setBackgroundBrush(QBrush(QColor("#1e293b")))
 
         # 图片
         self._pixmap_item = None
@@ -59,6 +61,19 @@ class CropCanvas(QGraphicsView):
 
         self.setCursor(Qt.CrossCursor)
         self.viewport().setMouseTracking(True)
+        self.setAcceptDrops(True)
+
+    # ───── 拖放支持 ─────
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        urls = event.mimeData().urls()
+        if urls:
+            path = urls[0].toLocalFile()
+            self.file_dropped.emit(path)
 
     # ───── 公开 API ─────
 
@@ -69,7 +84,7 @@ class CropCanvas(QGraphicsView):
             self.original_image = img
             self.display_image = img.copy()
             self.crop_rect = None
-            self._update_display()
+            self._redraw_crop()
             self.display_changed.emit(*self.display_image.size)
             return True
         except Exception:
@@ -145,9 +160,10 @@ class CropCanvas(QGraphicsView):
             return
         x, y, w, h = self.crop_rect
         rect = QRectF(x, y, w, h)
-        self._scene.addRect(rect,
+        r = self._scene.addRect(rect,
             QPen(QColor("#ef4444"), 2),
             QBrush(QColor(239, 68, 68, 30)))
+        r.setData(0, self._CROP_TAG)
 
         hs = self.HANDLE_SIZE / self._view_scale()
         handle_positions = {
@@ -159,7 +175,15 @@ class CropCanvas(QGraphicsView):
         }
         for pt in handle_positions.values():
             hr = QRectF(pt.x() - hs, pt.y() - hs, hs * 2, hs * 2)
-            self._scene.addRect(hr, QPen(QColor("#ef4444"), 1), QBrush(QColor("#ffffff")))
+            h = self._scene.addRect(hr, QPen(QColor("#ef4444"), 1), QBrush(QColor("#ffffff")))
+            h.setData(0, self._CROP_TAG)
+
+    def _redraw_crop(self):
+        """仅重绘裁剪选区（拖拽时使用，不重建 pixmap）"""
+        for item in self._scene.items():
+            if item.data(0) == self._CROP_TAG:
+                self._scene.removeItem(item)
+        self._draw_crop_overlay()
 
     def _view_scale(self) -> float:
         """当前 view→scene 缩放比"""
@@ -266,7 +290,7 @@ class CropCanvas(QGraphicsView):
             _, _, w, h = self.crop_rect
             if w < self.MIN_CROP_SIZE or h < self.MIN_CROP_SIZE:
                 self.crop_rect = None
-            self._update_display()
+            self._redraw_crop()
 
         self._drag_mode = None
         self._drag_start = (0, 0)
@@ -309,7 +333,7 @@ class CropCanvas(QGraphicsView):
         else:
             self.crop_rect = self._compute_handle_rect(self._drag_mode, ix, iy)
 
-        self._update_display()
+        self._redraw_crop()
 
     def _compute_handle_rect(self, handle: str, ix: float, iy: float):
         x, y, w, h = self._drag_start_rect

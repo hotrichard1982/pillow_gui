@@ -156,3 +156,89 @@ class TestHandleComputation:
             "tl", -10, -10, (0, 0), (10, 10, 100, 100), (800, 600))
         assert result[0] == 0
         assert result[1] == 0
+
+
+class TestCropCanvasCore:
+    """测试 canvas.py _compute_handle_rect 核心逻辑（纯数学，不依赖 GUI）"""
+
+    @staticmethod
+    def compute(handle, ix, iy, start_rect, image_size, min_size=5):
+        """与 canvas.py _compute_handle_rect 完全一致的独立实现"""
+        x, y, w, h = start_rect
+        x2, y2 = x + w, y + h
+        iw, ih = image_size
+        m = min_size
+
+        if handle == "tl":
+            nx = max(0, min(int(ix), x2 - m))
+            ny = max(0, min(int(iy), y2 - m))
+            return (nx, ny, x2 - nx, y2 - ny)
+        elif handle == "tr":
+            nx2 = min(iw, max(int(ix), x + m))
+            ny = max(0, min(int(iy), y2 - m))
+            return (x, ny, nx2 - x, y2 - ny)
+        elif handle == "bl":
+            nx = max(0, min(int(ix), x2 - m))
+            ny2 = min(ih, max(int(iy), y + m))
+            return (nx, y, x2 - nx, ny2 - y)
+        elif handle == "br":
+            nx2 = min(iw, max(int(ix), x + m))
+            ny2 = min(ih, max(int(iy), y + m))
+            return (x, y, nx2 - x, ny2 - y)
+        elif handle == "tc":
+            ny = max(0, min(int(iy), y2 - m))
+            return (x, ny, w, y2 - ny)
+        elif handle == "bc":
+            ny2 = min(ih, max(int(iy), y + m))
+            return (x, y, w, ny2 - y)
+        elif handle == "ml":
+            nx = max(0, min(int(ix), x2 - m))
+            return (nx, y, x2 - nx, h)
+        elif handle == "mr":
+            nx2 = min(iw, max(int(ix), x + m))
+            return (x, y, nx2 - x, h)
+        return (x, y, w, h)
+
+    def test_compute_handle_tl(self):
+        r = self.compute("tl", 50, 50, (100, 100, 200, 200), (800, 600))
+        assert r[0] == 50 and r[1] == 50
+
+    def test_compute_handle_br(self):
+        r = self.compute("br", 400, 400, (100, 100, 200, 200), (800, 600))
+        assert r[2] == 300 and r[3] == 300
+
+    def test_compute_handle_tr(self):
+        r = self.compute("tr", 350, 50, (100, 100, 200, 200), (800, 600))
+        assert r[0] == 100 and r[1] == 50 and r[2] == 250
+
+    def test_compute_handle_bl(self):
+        r = self.compute("bl", 50, 350, (100, 100, 200, 200), (800, 600))
+        assert r[0] == 50 and r[1] == 100 and r[3] == 250
+
+    def test_compute_handle_tc(self):
+        r = self.compute("tc", 200, 20, (100, 100, 200, 200), (800, 600))
+        assert r[1] == 20 and r[3] == 280
+
+    def test_compute_handle_bc(self):
+        r = self.compute("bc", 200, 380, (100, 100, 200, 200), (800, 600))
+        assert r[3] == 280
+
+    def test_compute_handle_ml(self):
+        r = self.compute("ml", 20, 200, (100, 100, 200, 200), (800, 600))
+        assert r[0] == 20 and r[2] == 280
+
+    def test_compute_handle_mr(self):
+        r = self.compute("mr", 380, 200, (100, 100, 200, 200), (800, 600))
+        assert r[2] == 280
+
+    def test_compute_clamped_top_left(self):
+        r = self.compute("tl", -10, -10, (10, 10, 100, 100), (800, 600))
+        assert r[0] == 0 and r[1] == 0
+
+    def test_compute_clamped_bottom_right(self):
+        r = self.compute("br", 900, 700, (700, 500, 100, 100), (800, 600))
+        assert r[2] == 100 and r[3] == 100
+
+    def test_compute_min_size_enforced(self):
+        r = self.compute("tl", 295, 295, (100, 100, 200, 200), (800, 600), min_size=5)
+        assert r[2] >= 5 and r[3] >= 5

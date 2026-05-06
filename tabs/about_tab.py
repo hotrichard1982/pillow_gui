@@ -1,5 +1,6 @@
 """关于我们标签页"""
 import sys
+import os
 import webbrowser
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton
@@ -31,7 +32,8 @@ class AboutTab(QWidget):
         # Logo
         logo = QLabel()
         try:
-            pix = QPixmap("logo.png").scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_path = self._resource_path("logo.png")
+            pix = QPixmap(logo_path).scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo.setPixmap(pix)
             logo.setAlignment(Qt.AlignCenter)
         except Exception:
@@ -101,3 +103,9 @@ class AboutTab(QWidget):
             row.addWidget(v)
             row.addStretch()
             parent_layout.addLayout(row)
+
+    @staticmethod
+    def _resource_path(relative):
+        if hasattr(sys, "_MEIPASS"):
+            return os.path.join(sys._MEIPASS, relative)
+        return os.path.join(os.path.dirname(__file__), relative)

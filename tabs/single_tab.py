@@ -73,9 +73,7 @@ class SingleTab(QWidget):
         self.load_btn = QPushButton("加载")
         self.load_btn.setObjectName("")
         bar.addWidget(self.load_btn)
-        w = QWidget()
-        w.setLayout(bar)
-        return w
+        return self._wrap(bar)
 
     def _build_resize_section(self) -> QWidget:
         section = QVBoxLayout()
@@ -126,10 +124,7 @@ class SingleTab(QWidget):
         self.resize_btn = QPushButton("应用缩放")
         self.resize_btn.setEnabled(False)
         section.addWidget(self.resize_btn)
-
-        w = QWidget()
-        w.setLayout(section)
-        return w
+        return self._wrap(section)
 
     def _build_crop_section(self) -> QWidget:
         section = QVBoxLayout()
@@ -173,10 +168,7 @@ class SingleTab(QWidget):
         self.crop_btn = QPushButton("应用裁剪")
         self.crop_btn.setEnabled(False)
         section.addWidget(self.crop_btn)
-
-        w = QWidget()
-        w.setLayout(section)
-        return w
+        return self._wrap(section)
 
     def _build_save_section(self) -> QWidget:
         section = QVBoxLayout()
@@ -205,9 +197,7 @@ class SingleTab(QWidget):
         self.hint_label.setWordWrap(True)
         section.addWidget(self.hint_label)
 
-        w = QWidget()
-        w.setLayout(section)
-        return w
+        return self._wrap(section)
 
     # ───── 信号连接 ─────
 
@@ -224,6 +214,7 @@ class SingleTab(QWidget):
 
         self.canvas.crop_changed.connect(self._on_crop_changed)
         self.canvas.display_changed.connect(self._on_display_changed)
+        self.canvas.file_dropped.connect(self._on_file_dropped)
 
         self.width_input.textChanged.connect(self._on_width_change)
         self.height_input.textChanged.connect(self._on_height_change)
@@ -435,3 +426,17 @@ class SingleTab(QWidget):
             self.quality_input.setText("1")
         elif v > 100:
             self.quality_input.setText("100")
+
+    def _on_file_dropped(self, path):
+        if path.lower().endswith(IMG_EXTS):
+            self.file_input.setText(path)
+            self._load_image()
+        else:
+            QMessageBox.warning(self, "格式不支持",
+                "不支持的文件格式\n支持：JPG、JPEG、PNG、WebP、BMP")
+
+    @staticmethod
+    def _wrap(layout):
+        w = QWidget()
+        w.setLayout(layout)
+        return w

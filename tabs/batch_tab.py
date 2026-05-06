@@ -165,7 +165,8 @@ class BatchTab(QWidget):
         self._worker = BatchWorker(self.input_dir.text(), output, tw, q)
         self._worker.progress.connect(self._on_progress)
         self._worker.finished.connect(self._on_finished)
-        self._worker.log.connect(lambda m: print(m))
+        self._error_details = []
+        self._worker.log.connect(lambda m: self._error_details.append(m))
         self._worker.start()
 
     def _on_progress(self, current, total):
@@ -177,9 +178,15 @@ class BatchTab(QWidget):
         if errors:
             msg += f"，{len(errors)} 张失败"
         self.status_label.setText(msg)
+        detail = ""
+        if self._error_details:
+            detail = "\n\n" + "\n".join(self._error_details[:10])
+            if len(self._error_details) > 10:
+                detail += f"\n... 还有 {len(self._error_details) - 10} 条错误"
         QMessageBox.information(self, "完成",
             f"已处理 {total} 张图片！"
-            + (f"\n失败 {len(errors)} 张：{', '.join(errors[:5])}" if errors else ""))
+            + (f"\n失败 {len(errors)} 张" if errors else "")
+            + detail)
 
     def _on_quality_change(self):
         try:

@@ -7,7 +7,9 @@ a = Analysis(
     datas=[('logo.png', '.')],
     hiddenimports=[
         'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
-        'webbrowser', 'PIL', 'PIL.Image',
+        'PySide6.QtSvg',
+        'PIL._imaging', 'PIL.Image',
+        'webbrowser',
     ],
     hookspath=[],
     hooksconfig={},
