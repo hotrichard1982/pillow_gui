@@ -174,6 +174,15 @@ QCheckBox::indicator:checked {
     color: #fbbf24;
     font-size: 11px;
 }
+.infoBar {
+    background: #172554;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+.infoBar QLabel {
+    color: #93c5fd;
+    font-size: 11px;
+}
 
 /* ─── 滚动区域背景 ─── */
 QScrollArea #scrollWidget {

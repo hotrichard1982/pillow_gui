@@ -116,8 +116,9 @@ class SingleTab(QWidget):
         self.png_warn.setObjectName("warningBar")
         wl = QHBoxLayout(self.png_warn)
         wl.setContentsMargins(8, 6, 8, 6)
-        wl.addWidget(QLabel("\u26a0\ufe0f"))
-        wl.addWidget(QLabel("PNG \u4e3a\u65e0\u635f\u683c\u5f0f\uff0c\u538b\u7f29\u65e0\u6548\uff0c\u4fdd\u5b58\u65f6\u9ed8\u8ba4\u8f6c JPG"))
+        wl.addWidget(QLabel("PNG"))
+        self.png_warn_text = QLabel("压缩：256 色 (质量=100)")
+        wl.addWidget(self.png_warn_text)
         self.png_warn.setVisible(False)
         section.addWidget(self.png_warn)
 
@@ -372,8 +373,12 @@ class SingleTab(QWidget):
         fmt = src.format if src else ""
         hint = f"原图：{ow}×{oh}  |  当前：{w}×{h}"
         if fmt == "PNG":
-            hint += "  |  PNG 无法压缩"
+            hint += "  |  PNG"
+            self.png_warn.setObjectName("infoBar")
+            self.png_warn.style().unpolish(self.png_warn)
+            self.png_warn.style().polish(self.png_warn)
             self.png_warn.setVisible(True)
+            self._update_png_warn()
         else:
             self.png_warn.setVisible(False)
         self.hint_label.setText(hint)
@@ -428,6 +433,21 @@ class SingleTab(QWidget):
             self.quality_input.setText("1")
         elif v > 100:
             self.quality_input.setText("100")
+        if self.canvas.original_image and self.canvas.original_image.format == "PNG":
+            self._update_png_warn()
+
+    def _update_png_warn(self):
+        from utils.image_ops import _png_colors
+        try:
+            q = int(self.quality_input.text())
+        except ValueError:
+            q = 85
+        q = max(1, min(100, q))
+        if q < 100:
+            colors = _png_colors(q)
+            self.png_warn_text.setText(f"有损压缩：{colors} 色 (质量={q})")
+        else:
+            self.png_warn_text.setText("原始质量，无损")
 
     def _on_file_dropped(self, path):
         if path.lower().endswith(IMG_EXTS):
